@@ -136,6 +136,28 @@ def update_state(char_id: str, **kwargs) -> None:
 # Sessions and turns
 # ---------------------------------------------------------------------------
 
+def start_session(char_id: str, episode_id: str | None = None) -> int:
+    conn = _connect()
+    cur = conn.execute(
+        "INSERT INTO sessions (character_id, episode_id) VALUES (?, ?)",
+        (char_id, episode_id),
+    )
+    conn.commit()
+    session_id = cur.lastrowid
+    conn.close()
+    return session_id
+
+
+def end_session(session_id: int, summary: str | None = None) -> None:
+    conn = _connect()
+    conn.execute(
+        "UPDATE sessions SET ended_at = datetime('now'), summary = ? WHERE id = ?",
+        (summary, session_id),
+    )
+    conn.commit()
+    conn.close()
+
+
 def log_turn(
     session_id: int,
     user_text_raw: str,
