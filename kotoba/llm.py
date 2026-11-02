@@ -61,6 +61,27 @@ def chat(
     return reply
 
 
+def _resolve_refs(schema: dict) -> dict:
+    """Inline all $ref entries so Ollama doesn't choke on $defs."""
+    import copy
+
+    defs = schema.get("$defs", {})
+    if not defs:
+        return schema
+
+    def _resolve(obj: object) -> object:
+        if isinstance(obj, dict):
+            if "$ref" in obj:
+                name = obj["$ref"].rsplit("/", 1)[-1]
+                return copy.deepcopy(_resolve(defs.get(name, obj)))
+            return {k: _resolve(v) for k, v in obj.items() if k != "$defs"}
+        if isinstance(obj, list):
+            return [_resolve(item) for item in obj]
+        return obj
+
+    return _resolve(schema)  # type: ignore[return-value]
+
+
 def chat_json(
     messages: list[dict],
     schema: Type[T],
@@ -69,7 +90,7 @@ def chat_json(
     think: bool = False,
     model: str = MODEL,
 ) -> T:
-    json_schema = schema.model_json_schema()
+    json_schema = _resolve_refs(schema.model_json_schema())
     payload = {
         "model": model,
         "messages": messages,

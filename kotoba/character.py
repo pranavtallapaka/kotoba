@@ -37,21 +37,25 @@ def build_prompt(char_id: str) -> str:
         "\n".join(f"- {m['fact']}" for m in mems) if mems else "(none yet)"
     )
 
-    template = TEMPLATE.read_text()
-    return template.format(
-        name=char["name"],
-        persona=char["persona"].strip(),
-        closeness=state["closeness"],
-        respect=state["respect"],
-        offense=_OFFENSE_LABELS.get(state["offense"], state["offense"]),
-        register_to_player_label=_REGISTER_LABELS.get(
+    fills = {
+        "name": char["name"],
+        "persona": char["persona"].strip(),
+        "closeness": str(state["closeness"]),
+        "respect": str(state["respect"]),
+        "offense": _OFFENSE_LABELS.get(state["offense"], state["offense"]),
+        "register_to_player_label": _REGISTER_LABELS.get(
             state["register_to_player"], state["register_to_player"]
         ),
-        register_expected_label=_REGISTER_LABELS.get(
+        "register_expected_label": _REGISTER_LABELS.get(
             state["register_expected"], state["register_expected"]
         ),
-        memories=memories_text,
-    )
+        "memories": memories_text,
+    }
+    template = TEMPLATE.read_text()
+    result = template
+    for key, val in fills.items():
+        result = result.replace("{" + key + "}", val)
+    return result
 
 
 def reply(history: list[dict], user_text: str, char_id: str) -> str:

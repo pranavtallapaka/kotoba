@@ -1,0 +1,41 @@
+id,category,addressee_or_subject,text,expected_register,expected_offense_ids,notes
+1,correct_haeyo,seoyeon,안녕하세요!,haeyo,,"Hello! (basic 해요체 greeting)"
+2,correct_haeyo,seoyeon,저는 한이에요. 오늘부터 마케팅 팀이에요.,haeyo,,"I'm Han. I'm in marketing starting today. (clean 해요체 self-intro)"
+3,correct_haeyo,seoyeon,선배님 이거 어떻게 해요?,haeyo,,"How do I do this, 선배? (correct title + 해요체)"
+4,correct_haeyo,seoyeon,오늘 날씨가 정말 좋아요.,haeyo,,The weather is really nice today.
+5,correct_haeyo,seoyeon,잘 부탁해요.,haeyo,,"Please take care of me. / Nice to meet you. (polite 해요체)"
+6,correct_haeyo,seoyeon,지금 바빠요?,haeyo,,Are you busy right now?
+7,correct_haeyo,seoyeon,저도 배우고 싶어요.,haeyo,,I want to learn too.
+8,correct_haeyo,seoyeon,어제 밥 먹었어요?,haeyo,,Did you eat yesterday?
+9,correct_haeyo,seoyeon,저는 아직 잘 모르겠어요.,haeyo,,I still don't know very well.
+10,correct_haeyo,seoyeon,선배님 덕분에 이해했어요.,haeyo,,"Thanks to you, 선배, I understood. (correct title, 해요체)"
+11,correct_haeyo,seoyeon,선배님이 도와주셔서 정말 감사해요.,haeyo,,"Thank you so much for helping me. (correct -셔서 honorific for Seo-yeon, 해요체 final)"
+12,correct_haeyo,seoyeon,좋아요 알겠어요!,haeyo,,Okay I understand!
+13,correct_haeyo,seoyeon,오늘 점심 같이 먹어요?,haeyo,,Shall we have lunch together today?
+14,correct_haeyo,seoyeon,내일 또 봐요!,haeyo,,See you again tomorrow!
+15,correct_haeyo,seoyeon,선배님 몇 시에 퇴근해요?,haeyo,,"선배, what time do you get off work?"
+16,banmal_before_offer,seoyeon,뭐 먹어?,banmal,banmal_before_offer,"What are you eating? (bare -어 ending, casual)"
+17,banmal_before_offer,seoyeon,어디 가?,banmal,banmal_before_offer,Where are you going? (bare -아 ending)
+18,banmal_before_offer,seoyeon,나 좀 도와줘.,banmal,banmal_before_offer,Help me a bit. (casual imperative -줘)
+19,banmal_before_offer,seoyeon,그래 알았어.,banmal,banmal_before_offer,"Okay, got it. (bare -어 ending)"
+20,banmal_before_offer,seoyeon,왜 그래?,banmal,banmal_before_offer,What's wrong? (casual -해 without 요)
+21,banmal_before_offer,seoyeon,배고파. 같이 밥 먹자.,banmal,banmal_before_offer,"I'm hungry. Let's eat together. (-파 and proposal -자, both casual)"
+22,banmal_before_offer,seoyeon,고마워.,banmal,banmal_before_offer,Thanks. (casual -워 ending)
+23,banmal_before_offer,seoyeon,이거 어떻게 해?,banmal,banmal_before_offer,How do I do this? (bare -해 without 요)
+24,hapsyo_stiff,seoyeon,안녕하십니까. 잘 부탁드립니다.,hapsyo,,"Hello. I look forward to working with you. (-십니까, -습니다; formal but not offensive with Seo-yeon)"
+25,hapsyo_stiff,seoyeon,감사합니다 선배님.,hapsyo,,"Thank you, 선배님. (-습니다; stiff but acceptable)"
+26,hapsyo_stiff,seoyeon,네 알겠습니다.,hapsyo,,"Yes, I understand. (-습니다; overly formal)"
+27,hapsyo_stiff,seoyeon,오늘 수고하셨습니다.,hapsyo,,"Thank you for your hard work today. (-습니다; formal; correct -시- for Seo-yeon)"
+28,hapsyo_stiff,seoyeon,죄송합니다. 제가 실수했습니다.,hapsyo,,"I'm sorry. I made a mistake. (-습니다 formal apology)"
+29,honorific_error,team_lead,팀장이 뭐라고 했어요?,haeyo,missing_honorifics_about_superiors,"What did the team lead say? (should: 팀장님이 뭐라고 하셨어요 — missing 님 and -시-)"
+30,honorific_error,team_lead,오 팀장이 오늘 회의에 와요.,haeyo,missing_honorifics_about_superiors,"Team lead Oh is coming to the meeting. (should: 오 팀장님이 … 오세요 — missing 님 and -시-)"
+31,honorific_error,team_lead,팀장이 점심 먹었어요.,haeyo,missing_honorifics_about_superiors,"The team lead ate lunch. (먹었어요 → 드셨어요; also missing 님)"
+32,honorific_error,team_lead,팀장한테 물어봤어요.,haeyo,missing_honorifics_about_superiors,"I asked the team lead. (한테 → 께; also missing 님 on 팀장)"
+33,honorific_error,team_lead,팀장이 뭐 해요?,haeyo,missing_honorifics_about_superiors,"What is the team lead doing? (should: 팀장님이 뭐 하세요 — missing 님 and -시-)"
+34,honorific_error,team_lead,오 팀장 말 들었어요?,haeyo,missing_honorifics_about_superiors,"Did you hear what team lead Oh said? (말 → 말씀; missing 님)"
+35,grammar_only,seoyeon,저는 어제 갈 거예요.,haeyo,,"*I'm going to go yesterday. (future tense with past adverb; should be 어제 갔어요)"
+36,grammar_only,seoyeon,저는 한국을 배우고 있어요.,haeyo,,"*I'm learning Korea. (한국 → 한국어; wrong object noun, register fine)"
+37,grammar_only,seoyeon,저는 도착했는데 지금 사무실에 있을게요.,haeyo,,"*I arrived so I'll be at the office now. (있을게요 = future intent; should be 있어요 for current state)"
+38,grammar_only,seoyeon,어제 먹는 점심이 맛있었어요.,haeyo,,"*The lunch I eat yesterday was delicious. (present relative clause 먹는 with past anchor; should be 먹은)"
+39,grammar_only,seoyeon,저는 5년 전에 한국어를 배우고 있어요.,haeyo,,"*I'm learning Korean since 5 years ago. (present progressive with past anchor; should be 배운 지 5년 됐어요)"
+40,grammar_only,seoyeon,선배님 제가 이 파일 보내줄 수 있을게요.,haeyo,,"*I will be able to send this file. (수 있을게요 ungrammatical; should be 보내드릴게요 or 보낼 수 있어요)"
