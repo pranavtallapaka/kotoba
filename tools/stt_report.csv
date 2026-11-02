@@ -1,0 +1,16 @@
+model,id,lang,error_type,status,similarity,said,heard,correct_form,secs,avg_logprob,no_speech_prob
+large,ko_01,ko,register,preserved,1.00,사장님 이거 먹어,사장님 이거 먹어.,사장님 이거 드세요,3.24,-0.258,0.005
+large,ko_02,ko,register,preserved,1.00,부장님 내일 시간 있어,부장님 내일 시간 있어.,부장님 내일 시간 있으세요,0.88,-0.216,0.007
+large,ko_03,ko,honorific,preserved,1.00,선생님이 집에 갔어요,선생님이 집에 갔어요.,선생님께서 집에 가셨어요,0.87,-0.261,0.008
+large,ko_04,ko,honorific,preserved,1.00,할머니가 밥을 먹어요,할머니가 밥을 먹어요.,할머니께서 진지를 드세요,0.88,-0.132,0.005
+large,ko_05,ko,particle,preserved,1.00,저는 커피가 마셔요,저는 커피가 마셔요.,저는 커피를 마셔요,0.91,-0.138,0.009
+large,ko_06,ko,particle,preserved,1.00,도서관을 공부해요,도서관을 공부해요.,도서관에서 공부해요,0.92,-0.112,0.005
+large,ko_07,ko,tense,preserved,1.00,어제 친구를 만날 거예요,어제 친구를 만날 거예요.,어제 친구를 만났어요,0.91,-0.172,0.005
+large,ko_08,ko,conjugation,preserved,1.00,날씨가 춥어요,날씨가 춥어요.,날씨가 추워요,0.94,-0.131,0.008
+large,ko_09,ko,word_order,preserved,1.00,이 음식이 맛있지 않아요 너무,이 음식이 맛있지 않아요 너무,이 음식이 너무 맛있지 않아요,0.89,-0.103,0.003
+large,ko_10,ko,control,preserved,1.00,저는 학생이에요,저는 학생이에요.,저는 학생이에요,0.81,-0.150,0.011
+large,ko_11,ko,register_banmal,preserved,1.00,선배 오늘 뭐 해?,선배 오늘 뭐해?,선배 오늘 뭐 하세요?,0.83,-0.179,0.010
+large,ko_12,ko,missing_honorific_verb,preserved,1.00,선배 지금 있어요?,선배 지금 있어요?,선배 지금 계세요?,0.82,-0.162,0.009
+large,ko_13,ko,missing_honorific_suffix,preserved,1.00,선배 어디 가요?,선배 어디 가요?,선배 어디 가세요?,0.83,-0.162,0.009
+large,ko_14,ko,register_banmal,preserved,1.00,감사해,감사해.,감사해요,0.82,-0.210,0.003
+large,ko_15,ko,missing_honorific_verb,preserved,1.00,알아요?,알아요?,아세요?,0.83,-0.231,0.045

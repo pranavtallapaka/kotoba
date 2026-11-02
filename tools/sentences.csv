@@ -1,21 +1,41 @@
 id,lang,spoken_text,error_type,correct_form,note
-ko_01,ko,안녕하세요,control,안녕하세요,Basic greeting — 존댓말
-ko_02,ko,잘 지내셨어요?,control,잘 지내셨어요?,How have you been — 존댓말
-ko_03,ko,오늘 날씨가 좋네요,control,오늘 날씨가 좋네요,Nice weather today — 존댓말
-ko_04,ko,고마워,control,고마워,Thanks — 반말
-ko_05,ko,나 배고파,control,나 배고파,I'm hungry — 반말
+ko_01,ko,사장님 이거 먹어,register,사장님 이거 드세요,반말 to the boss
+ko_02,ko,부장님 내일 시간 있어,register,부장님 내일 시간 있으세요,반말 to a manager
+ko_03,ko,선생님이 집에 갔어요,honorific,선생님께서 집에 가셨어요,missing -시- and 께서
+ko_04,ko,할머니가 밥을 먹어요,honorific,할머니께서 진지를 드세요,no honorific vocabulary
+ko_05,ko,저는 커피가 마셔요,particle,저는 커피를 마셔요,subject particle instead of object
+ko_06,ko,도서관을 공부해요,particle,도서관에서 공부해요,wrong location particle
+ko_07,ko,어제 친구를 만날 거예요,tense,어제 친구를 만났어요,future tense with 어제
+ko_08,ko,날씨가 춥어요,conjugation,날씨가 추워요,ㅂ irregular not applied
+ko_09,ko,이 음식이 맛있지 않아요 너무,word_order,이 음식이 너무 맛있지 않아요,adverb at the end
+ko_10,ko,저는 학생이에요,control,저는 학생이에요,correct sentence (control)
 ko_11,ko,선배 오늘 뭐 해?,register_banmal,선배 오늘 뭐 하세요?,반말 to a 선배; needs -세요
 ko_12,ko,선배 지금 있어요?,missing_honorific_verb,선배 지금 계세요?,있다 → 계시다 for a person you respect
 ko_13,ko,선배 어디 가요?,missing_honorific_suffix,선배 어디 가세요?,-가요 misses -시- for the senior's action
 ko_14,ko,감사해,register_banmal,감사해요,Dropped -요; falls to 반말
 ko_15,ko,알아요?,missing_honorific_verb,아세요?,알다 honorific is 아시다; not 알아요 to a senior
-ja_01,ja,おはようございます,control,おはようございます,Good morning — formal
-ja_02,ja,今日はいい天気ですね,control,今日はいい天気ですね,Nice weather today — polite
-ja_03,ja,ありがとうございます,control,ありがとうございます,Thank you — formal
-ja_04,ja,すみません,control,すみません,Excuse me — polite
-ja_05,ja,お疲れ様でした,control,お疲れ様でした,Good work today — formal
+ko_21,ko,안녕하세요,control,안녕하세요,Basic greeting — 존댓말
+ko_22,ko,잘 지내셨어요?,control,잘 지내셨어요?,How have you been — 존댓말
+ko_23,ko,오늘 날씨가 좋네요,control,오늘 날씨가 좋네요,Nice weather today — 존댓말
+ko_24,ko,고마워,control,고마워,Thanks — 반말
+ko_25,ko,나 배고파,control,나 배고파,I'm hungry — 반말
+ja_01,ja,先生これ食べる,register,先生これ召し上がりますか,plain form to a teacher
+ja_02,ja,社長が来ました,honorific,社長がいらっしゃいました,no sonkeigo for the boss
+ja_03,ja,私がお客様のところにいらっしゃいます,keigo_direction,私がお客様のところに伺います,sonkeigo used for yourself
+ja_04,ja,私は日本語が勉強します,particle,私は日本語を勉強します,が instead of を
+ja_05,ja,図書館で行きます,particle,図書館に行きます,で instead of に
+ja_06,ja,昨日映画を見ます,tense,昨日映画を見ました,present tense with 昨日
+ja_07,ja,この本は高いくないです,conjugation,この本は高くないです,い-adjective negation
+ja_08,ja,静かの部屋が好きです,conjugation,静かな部屋が好きです,な-adjective with の
+ja_09,ja,田中さんはお茶を飲みたいです,grammar,田中さんはお茶を飲みたがっています,third-person desire
+ja_10,ja,私は学生です,control,私は学生です,correct sentence (control)
 ja_11,ja,これ何?,register_plain,これは何ですか,Plain question to a superior
 ja_12,ja,日本語を勉強してる,register_contraction,日本語を勉強しています,-てる is casual; use -ています with superiors
 ja_13,ja,教えてもらえますか,kenjogo_level,教えていただけますか,もらう → いただく when receiving from a superior
 ja_14,ja,私は学生じゃないです,register_plain,私は学生ではありません,じゃない is casual; use ではありません in formal register
 ja_15,ja,持ってあげます,kenjogo_incomplete,お持ちします,あげます is neutral giving; use お〜します (謙譲) toward a superior
+ja_21,ja,おはようございます,control,おはようございます,Good morning — formal
+ja_22,ja,今日はいい天気ですね,control,今日はいい天気ですね,Nice weather today — polite
+ja_23,ja,ありがとうございます,control,ありがとうございます,Thank you — formal
+ja_24,ja,すみません,control,すみません,Excuse me — polite
+ja_25,ja,お疲れ様でした,control,お疲れ様でした,Good work today — formal
