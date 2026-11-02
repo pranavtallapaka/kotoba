@@ -1,0 +1,10 @@
+name: 한
+age: 21
+gender: male
+address_prefs:
+  ko: "한 씨"       # how Korean characters address you (workplace default)
+  ja: "ハンさん"    # how Japanese characters address you
+level_ko: beginner
+level_ja: beginner
+support_level_ko: 2   # 0=choose-and-say  1=word hints  2=free speech help on demand  3=no help
+support_level_ja: 2

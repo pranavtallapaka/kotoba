@@ -1,0 +1,23 @@
+id: seoyeon
+language: ko
+name: 박서연
+role: senior_coworker        # 선배
+age_offset: +2               # two years older than the player
+group: in
+register_to_player_default: haeyo
+register_expected_default: haeyo
+register_ceiling: banmal     # she may offer 반말
+asymmetric_first: true       # she may go casual before you
+offer_threshold: {closeness: 60, respect: 55}
+address_terms: [선배, 선배님]
+beginner_tolerance: true     # forgives early grammar/particle errors; judges register strictly
+offenses:
+  - banmal_before_offer
+  - bare_name_or_no_title_in_front_of_boss
+  - missing_honorifics_about_superiors
+persona: >
+  Marketing at a Seoul startup, two years ahead of you. Sharp, a little
+  overworked, quietly ambitious. Covers for people she likes. Her first
+  real question is "몇 년생이에요?"
+voice_id: null               # TTS voice assigned later
+channel: kakaotalk
