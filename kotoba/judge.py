@@ -162,4 +162,18 @@ def judge(
         result.register_match = (val_reg == result.register_expected)
         result.validator_override = True
 
+    # banmal_before_offer requires the player to have actually used banmal.
+    # The LLM sometimes fires it on haeyo turns when it sees a medial -어/아 morpheme
+    # (e.g. "-어도", "-아서") even though the sentence ends in 요.
+    # Strip the false offense and undo the negative respect delta.
+    if "banmal_before_offer" in result.offense_ids and result.register_used != "banmal":
+        result.offense_ids = [
+            oid for oid in result.offense_ids if oid != "banmal_before_offer"
+        ]
+        if not result.offense_ids and not result.honorific_errors:
+            result.offense = "none"
+            result.repair_required = False
+            if result.state_deltas.get("respect", 0) < 0:
+                result.state_deltas["respect"] = 0
+
     return result

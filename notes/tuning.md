@@ -6,5 +6,44 @@
 2026-11-12  Day 10: memory retrieval + session summaries. character.py: _select_memories() returns last-5 + keyword-matched older ones (Korean 2+ char and English 3+ char tokens). summaries.py: 3-paragraph English summary (relationship delta, slips, one fact) via LLM. cli.py: tracks session_slips/session_memories in-loop; /quit generates+stores summary. 2-session test: hometown (부산) stored from session 1, persists to session 2 prompt; summary correctly identifies no slips and the Busan fact. Summary LLM occasionally ignores slip list (stochastic); data is correct upstream. Next: TTS or episode beats.
 2026-11-12  Day 9: consequences wired. state.py applies bounded deltas (closeness -3..+3, respect -10..+3), beginner tolerance (respect capped at -3 for slips; grammar-only = 0 cost), relationship_speed scales positive closeness. character.md behavior_note: cooler at respect<40, awkward beat at mild offense, repair demand at serious. explain_slip() shows one English line after register/honorific errors. /why command. 4-turn test: 3 polite + 1 반말 → respect 50→46, offense→mild, slip explanation fires. Stochastic honorific false-positives from judge still possible (preexisting issue). Next: TTS or episode beats.
 
+2026-11-12  Day 11: 3 live sessions analysed (14 new turns). Findings and fix #1 applied.
+
+  FINDINGS
+  1. Judge inconsistencies
+     - T15 CRITICAL false positive: "저도 같이 먹어도 돼요?" (clean haeyo) got register_match=True
+       but banmal_before_offer fired because judge saw medial -어도. Caused -6 respect penalty,
+       offense=mild, awkward beat — with no explanation shown to player (register_match was True
+       so explain_slip stayed silent). Root cause: judge LLM ignores its own rule that
+       banmal_before_offer requires register_used=="banmal".
+     - T19 false honorific error: ['선배님'] listed as honorific_error — the player used the
+       correct address term. Triggered misleading "[Slip] Honorific slip: 선배님." message.
+     - T22 missed grammar error: "저는 어제 갈 거예요." (future+past adverb, row 35 of eval set)
+       — judge gave +1/+1. Stochastic miss.
+     - T17 vs T23: similar honorific errors got -4 and -1 respect deltas respectively.
+       Judge sets its own delta without reliable anchoring to the prompt's -4 rule.
+
+  2. Character reply issues
+     - T16: "저도 잘 씨네요." — garbled Korean (failed generation).
+     - T20: "네, 알겠습니다." — character used 하십시오체 form in a 해요체 session.
+     - T24: Character echoed player's words back verbatim.
+
+  3. Explanation lines
+     - Accurate and helpful: T17, T18, T21, T23.
+     - T15: silent false penalty — character offended, no explanation shown.
+     - T19: incorrect — "Honorific slip: 선배님" for the correct address term.
+
+  4. State speed
+     - After 14 turns across 3 sessions: closeness=29 (threshold 60), respect=46 (threshold 55).
+     - Need 31 more clean turns for closeness offer at +1/turn. Too slow.
+     - Respect yo-yos around 44-54 due to asymmetric penalties.
+
+  TOP 3 FIXES (ranked)
+  #1 APPLIED — Code guard: strip banmal_before_offer when register_used != "banmal";
+     also clear offense level and zero negative respect delta. (judge.py)
+     Verification: "저도 같이 먹어도 돼요?" now returns offense=none; "고마워." still returns offense=mild.
+  #2 DEFERRED — Filter address terms (선배님 etc.) out of honorific_errors to stop false slip messages. (judge.py)
+  #3 DEFERRED — Raise relationship_speed from 1.0→2.0 in player.yaml to cut closeness threshold
+     from ~31 turns to ~15 turns.
+
 Later:
   - Judge misses honorific errors (4/4 Day 7 misses). Fix: honorific rule check + subject/verb fields. Deferred.
