@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-from kotoba import character, judge as judge_module, llm, state as state_module
+from kotoba import character, judge as judge_module, llm, state as state_module, summaries
 from kotoba.db import (
     end_session,
     get_state,
@@ -71,10 +71,14 @@ def run(char_id: str) -> None:
     char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
     player = load_player()
 
+    initial_state = get_state(char_id)
     history: list[dict] = []
     last_reply: str = ""
     last_judge: judge_module.JudgeResult | None = None
     last_events: list[dict] = []
+    session_slips: list[str] = []
+    session_memories: list[str] = []
+    quit_requested = False
 
     print(f"\n[세션 시작: {char_id}. Type /quit to end.]\n")
 
@@ -89,6 +93,7 @@ def run(char_id: str) -> None:
             continue
 
         if user_input == "/quit":
+            quit_requested = True
             break
 
         if user_input == "/en":
@@ -141,9 +146,11 @@ def run(char_id: str) -> None:
         )
 
         events = state_module.apply_turn(result, char_id, player)
+        session_memories.extend(result.new_memories)
 
         slip_msg = state_module.explain_slip(result, user_input)
         if slip_msg:
+            session_slips.append(slip_msg)
             print(f"[Slip] {slip_msg}\n")
 
         char_reply = character.reply(history, user_input, char_id)
@@ -164,7 +171,16 @@ def run(char_id: str) -> None:
         last_judge = result
         last_events = events
 
-    end_session(session_id)
+    if quit_requested and history:
+        print("[Generating session summary…]", flush=True)
+        final_state = get_state(char_id)
+        summary = summaries.generate(
+            history, session_slips, session_memories, initial_state, final_state
+        )
+        end_session(session_id, summary=summary)
+        print(f"\n[Session Summary]\n{summary}\n")
+    else:
+        end_session(session_id)
     print("\n[세션 종료]")
 
 

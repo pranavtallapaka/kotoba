@@ -3,6 +3,7 @@
 build_prompt(char_id) -> system prompt string
 reply(history, user_text, char_id) -> Korean reply string
 """
+import re
 from pathlib import Path
 
 import yaml
@@ -28,6 +29,37 @@ _OFFENSE_LABELS = {
 }
 
 
+def _memory_matches(fact: str, user_text: str) -> bool:
+    """True if any significant token from fact appears in user_text."""
+    lower = user_text.lower()
+    for token in fact.split():
+        t = token.strip(".,!?()[]").lower()
+        if len(t) >= 3 and t in lower:
+            return True
+    for korean in re.findall(r"[가-힣]{2,}", fact):
+        if korean in user_text:
+            return True
+    return False
+
+
+def _select_memories(memories: list[dict], user_text: str, n: int = 5) -> list[dict]:
+    """Return the most recent n memories plus any older ones whose keywords
+    appear in user_text, deduplicated and sorted by age."""
+    if len(memories) <= n:
+        return memories
+    recent = memories[-n:]
+    older = memories[:-n]
+    matched = [m for m in older if _memory_matches(m["fact"], user_text)]
+    seen: set[int] = set()
+    result = []
+    for m in sorted(recent + matched, key=lambda x: x.get("created_at", "")):
+        mid = m.get("id", id(m))
+        if mid not in seen:
+            seen.add(mid)
+            result.append(m)
+    return result
+
+
 def _behavior_note(state: dict) -> str:
     parts = []
     if state["respect"] < 40:
@@ -50,10 +82,11 @@ def _behavior_note(state: dict) -> str:
     return " ".join(parts)
 
 
-def build_prompt(char_id: str) -> str:
+def build_prompt(char_id: str, user_text: str = "") -> str:
     char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
     state = get_state(char_id)
-    mems = get_memories(char_id)
+    all_mems = get_memories(char_id)
+    mems = _select_memories(all_mems, user_text)
 
     memories_text = (
         "\n".join(f"- {m['fact']}" for m in mems) if mems else "(none yet)"
@@ -82,7 +115,7 @@ def build_prompt(char_id: str) -> str:
 
 
 def reply(history: list[dict], user_text: str, char_id: str) -> str:
-    system_prompt = build_prompt(char_id)
+    system_prompt = build_prompt(char_id, user_text)
     messages = (
         [{"role": "system", "content": system_prompt}]
         + history
