@@ -69,6 +69,20 @@ def _classify_sentence(sentence: str) -> tuple[Register, Confidence, str]:
     return "unknown", "low", ""
 
 
+def find_register_word(text: str, register: Register) -> str:
+    """Return the first word (scanning right-to-left per sentence) whose endings
+    match the given register, or "" if none found."""
+    for sentence in re.split(r"[.?!]", text):
+        for word in reversed(sentence.split()):
+            w = _strip_noise(word)
+            if not w:
+                continue
+            reg, _, _ = _check_word(w)
+            if reg == register:
+                return w
+    return ""
+
+
 def classify(text: str) -> tuple[Register, Confidence, str]:
     """Classify the register of Korean text.
 

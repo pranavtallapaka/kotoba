@@ -23,9 +23,31 @@ _REGISTER_LABELS = {
 
 _OFFENSE_LABELS = {
     "none": "none",
-    "mild": "mild (be noticeably cooler and briefer)",
-    "serious": "serious (be cold, curt, and clearly uncomfortable)",
+    "mild": "mild",
+    "serious": "serious",
 }
+
+
+def _behavior_note(state: dict) -> str:
+    parts = []
+    if state["respect"] < 40:
+        parts.append(
+            "Respect is low (below 40). Give shorter, cooler replies and sound slightly more distant."
+        )
+    offense = state["offense"]
+    if offense == "mild":
+        parts.append(
+            "Mild offense just occurred. Begin your reply with a brief awkward beat — "
+            "something like '아… 네.' or '어… 그래요?' — then continue naturally."
+        )
+    elif offense == "serious":
+        parts.append(
+            "Serious offense. Be cold and curt. Ask '무슨 뜻이에요?' or similar before "
+            "proceeding. Do not act warmly until 한 씨 addresses the issue."
+        )
+    if not parts:
+        parts.append("Normal. Be warm but professional.")
+    return " ".join(parts)
 
 
 def build_prompt(char_id: str) -> str:
@@ -50,6 +72,7 @@ def build_prompt(char_id: str) -> str:
             state["register_expected"], state["register_expected"]
         ),
         "memories": memories_text,
+        "behavior_note": _behavior_note(state),
     }
     template = TEMPLATE.read_text()
     result = template
