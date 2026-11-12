@@ -41,9 +41,11 @@
   #1 APPLIED — Code guard: strip banmal_before_offer when register_used != "banmal";
      also clear offense level and zero negative respect delta. (judge.py)
      Verification: "저도 같이 먹어도 돼요?" now returns offense=none; "고마워." still returns offense=mild.
-  #2 DEFERRED — Filter address terms (선배님 etc.) out of honorific_errors to stop false slip messages. (judge.py)
-  #3 DEFERRED — Raise relationship_speed from 1.0→2.0 in player.yaml to cut closeness threshold
-     from ~31 turns to ~15 turns.
+  #2 APPLIED — Filter honorific_errors entries without → separator (judge.py).
+     Drops bare address terms (선배님 etc.); stops false "[Slip] Honorific slip: 선배님" messages.
+     Eval: register 100%, offense prec 100%, rec 90% — unchanged.
+  #3 APPLIED — relationship_speed default raised from 1.0→2.0 in state.py; player.yaml updated.
+     Clean turns now give +2 closeness. Threshold reachable in ~16 turns vs ~31.
 
 Later:
   - Judge misses honorific errors (4/4 Day 7 misses). Fix: honorific rule check + subject/verb fields. Deferred.

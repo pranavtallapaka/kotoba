@@ -31,3 +31,114 @@
 - Large: median 0.90 s, Korean 7/14 preserved
 - 0.23 s latency difference is negligible in a conversational turn.
   Large is worth it for the Korean accuracy improvement.
+
+---
+
+## Judge (prompts/judge_ko.md — Day 7, post-fixes Day 8/11)
+
+### Design
+- Separate LLM call (Qwen3 8B, temperature 0.1) on every player turn.
+- Returns structured JSON validated by Pydantic (JudgeResult).
+- Never writes dialogue; character model reads state only.
+
+### Accuracy on 40-row eval set (after Day 8 validator override)
+- **Register accuracy: 100%** (40/40) across all five categories:
+  - correct_haeyo 15/15, banmal_before_offer 8/8, hapsyo_stiff 5/5,
+    honorific_error 6/6, grammar_only 6/6
+- **Offense detection: 100% precision / 90% recall**
+  - 4 misses are in honorific_error rows — model sometimes omits
+    missing_honorifics_about_superiors offense_id while still listing the
+    error in honorific_errors. Accepted for now.
+- Before Day 8 validator: 90% register (36/40); banmal rows 20–23 were
+  misclassified. Validator override raised to 100%.
+
+### Known live-session issues (Day 11)
+- Medial -어/아 morphemes (e.g. -어도, -아서) in haeyo sentences can trigger
+  false banmal_before_offer. Guarded in code: strip the offense if
+  register_used ≠ "banmal". (judge.py)
+- Address terms (선배님 etc.) sometimes appear in honorific_errors with no
+  → correction. Guarded in code: drop entries without →. (judge.py)
+- Grammar error detection is stochastic; a known error (future+past adverb)
+  was missed in one live session.
+- Respect deltas for honorific errors vary (-1 to -4); prompt suggests -4
+  but model does not always honour it.
+
+---
+
+## Korean register validator (kotoba/validator_ko.py — Day 8)
+
+### Design
+- Pure rule-based; no LLM. Runs after every judge call.
+- Scans words right-to-left within each sentence.
+- Priority: hapsyo suffixes (니다/니까/십시오) → 요 → banmal set.
+- Multi-sentence: returns most casual register found.
+- Confidence: high for hapsyo and 요-endings; medium for banmal set.
+
+### Accuracy: 100% (40/40) on judge eval set
+- All five categories perfect.
+- High-confidence overrides used: hapsyo and 요 cases only.
+
+### Integration with judge
+- When validator confidence == "high" and disagrees with judge: register_used,
+  register_match, and register_expected are overridden.
+- Medium-confidence (banmal) does not override — avoids over-riding on
+  ambiguous cases where the judge may have context the validator lacks.
+
+---
+
+## State delta bounds (kotoba/judge.py + kotoba/state.py — Day 7/9)
+
+### Per-turn caps enforced in code (JudgeResult._clamp_deltas)
+- closeness: −3 … +3
+- respect: −10 … +3
+
+### Typical judge-suggested values
+| Situation | closeness | respect |
+|---|---|---|
+| Correct register, no errors | +1 | +1 |
+| Hapsyo (stiff, not rude) | 0 | 0 |
+| Banmal before offer | 0 | −6 |
+| Honorific error | 0 | −4 |
+| Grammar error only | 0 | −1 (or 0) |
+
+### relationship_speed (player.yaml)
+- Multiplies **positive** closeness deltas only. Negatives unaffected.
+- Default: 2.0 (halves turns-to-반말-offer vs 1.0).
+- Note: not in DB schema yet; state.py uses 2.0 as the hardcoded default.
+- 반말 offer thresholds: closeness ≥ 60, respect ≥ 55.
+  At +2/turn (speed 2.0): ~16 clean turns from start to closeness threshold.
+
+---
+
+## Beginner tolerance (kotoba/state.py — Day 9)
+
+### Active when: player.support_level_ko ≤ 2 (default: 2)
+- **Grammar-only errors** (grammar_errors non-empty, offense_ids empty,
+  honorific_errors empty, register_match True): respect delta zeroed.
+- **Register or honorific slip** (register_match False or honorific_errors
+  non-empty): respect penalty capped at −3, regardless of judge delta.
+- Register/honorific detection correct turn to turn; grammar-only misses are
+  stochastic but benign (player gets +1 instead of 0, minor).
+
+---
+
+## Slip explanation format (kotoba/state.py explain_slip — Day 9)
+
+### Trigger condition
+- Fires when: `register_match == False` OR `honorific_errors` non-empty
+  (after fix #2: entries without → are stripped, so bare address terms
+  no longer trigger a false explanation).
+
+### Format by case
+| Case | Message |
+|---|---|
+| Banmal → haeyo expected | "You used 반말 ({word}) with your senior. She expected 해요체: {word}요." |
+| Hapsyo → haeyo expected | "You used 하십시오체 (too formal). She expected 해요체." |
+| Other register mismatch | "You used {register} ({word}). She expected {expected}." |
+| Honorific error | "Honorific slip: {error[0]}. Use honorific forms when talking about superiors." |
+
+### Word extraction
+- `find_register_word(text, register)` in validator_ko.py: scans right-to-left
+  per sentence using _check_word(); returns the first word matching the register.
+- Correction for banmal→haeyo: appends 요 to the matched word (고마워 → 고마워요,
+  먹어 → 먹어요, 가 → 가요). Works for the vast majority of -어/아 endings.

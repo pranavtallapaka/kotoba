@@ -26,7 +26,9 @@ def apply_turn(
     """Apply judge deltas to state, log events, store memories. Returns event list."""
     state = db.get_state(char_id)
     support_ko = player.get("support_level_ko", 2)
-    rel_speed = float(player.get("relationship_speed", 1.0))
+    # relationship_speed is in player.yaml but not yet in the DB schema,
+    # so load_player() never returns it. Default 2.0 halves the turns to threshold.
+    rel_speed = float(player.get("relationship_speed", 2.0))
     is_beginner = support_ko <= 2
 
     raw = dict(result.state_deltas)  # already clamped by judge.py's model_validator

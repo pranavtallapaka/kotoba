@@ -8,4 +8,4 @@ level_ko: beginner
 level_ja: beginner
 support_level_ko: 2   # 0=choose-and-say  1=word hints  2=free speech help on demand  3=no help
 support_level_ja: 2
-relationship_speed: 1.0  # multiplier for positive closeness deltas
+relationship_speed: 2.0  # multiplier for positive closeness deltas (DB not yet wired; default in state.py)

@@ -162,6 +162,11 @@ def judge(
         result.register_match = (val_reg == result.register_expected)
         result.validator_override = True
 
+    # The judge prompt instructs honorific_errors in "X → Y" format.
+    # Entries without → are bare address terms the LLM mistakenly flagged
+    # (e.g. ['선배님'] when the player used the term correctly).
+    result.honorific_errors = [e for e in result.honorific_errors if "→" in e]
+
     # banmal_before_offer requires the player to have actually used banmal.
     # The LLM sometimes fires it on haeyo turns when it sees a medial -어/아 morpheme
     # (e.g. "-어도", "-아서") even though the sentence ends in 요.
