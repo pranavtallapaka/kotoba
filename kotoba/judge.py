@@ -13,6 +13,7 @@ import yaml
 from pydantic import BaseModel, model_validator
 
 from kotoba import llm
+from kotoba import validator_ko
 
 HERE = Path(__file__).parent
 ROOT = HERE.parent
@@ -47,6 +48,11 @@ class JudgeResult(BaseModel):
     offense: Literal["none", "mild", "serious"]
     repair_required: bool
     reason: str
+
+    # Set post-LLM by the rule-based validator; not sent to the model.
+    validator_register: Literal["hapsyo", "haeyo", "banmal", "unknown"] | None = None
+    validator_confidence: Literal["high", "medium", "low"] | None = None
+    validator_override: bool = False
 
     @model_validator(mode="after")
     def _clamp_deltas(self) -> "JudgeResult":
@@ -146,4 +152,14 @@ def judge(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": f'Analyze this player turn: "{text}"'},
     ]
-    return llm.chat_json(messages, JudgeResult, temperature=0.1)
+    result = llm.chat_json(messages, JudgeResult, temperature=0.1)
+
+    val_reg, val_conf, _ = validator_ko.classify(text)
+    result.validator_register = val_reg
+    result.validator_confidence = val_conf
+    if val_conf == "high" and val_reg != "unknown" and val_reg != result.register_used:
+        result.register_used = val_reg
+        result.register_match = (val_reg == result.register_expected)
+        result.validator_override = True
+
+    return result
