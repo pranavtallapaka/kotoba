@@ -10,9 +10,20 @@ Engine default: "say" (macOS built-in, zero model memory).
 Use --tts melo (or KOTOBA_TTS=melo) for MeloTTS neural synthesis.
 """
 import os
+import re
 import subprocess
 import tempfile
 import warnings
+
+# Characters allowed in TTS input: Korean syllables + Jamo, ASCII printable, whitespace.
+# Everything else (emoji, symbols, CJK outside Korean, etc.) is stripped.
+_TTS_STRIP = re.compile(r"[^가-힣ᄀ-ᇿ㄰-㆏ -~\s]")
+
+
+def clean_for_tts(text: str) -> str:
+    """Strip emoji and non-Korean/non-Latin symbols. Keeps on-screen text unchanged."""
+    return _TTS_STRIP.sub("", text).strip()
+
 
 _NORMAL_SPEED = 1.0
 _SLOW_SPEED = 0.7
@@ -52,6 +63,7 @@ def _get_melo(language: str):
 
 def synthesize(text: str, voice_id: str, slow: bool = False) -> str | None:
     """Synthesise text to a temp file. Returns path; caller must delete it. None on empty input."""
+    text = clean_for_tts(text)
     if not voice_id or not text or not text.strip():
         return None
     if _ENGINE == "say":

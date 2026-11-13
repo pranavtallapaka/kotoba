@@ -145,7 +145,7 @@ def _do_turn(
     repeat_slip = len(session_slips) >= 1
 
     # Pre-build character prompt now, before judge may update state
-    system_prompt = character.build_prompt(char_id, user_input, repeat_slip=repeat_slip)
+    system_prompt = character.build_prompt(char_id, user_input, repeat_slip=repeat_slip, voice=bool(voice_id))
 
     # --- Thread A: judge — starts only after reply's first sentence is queued for TTS ---
     _judge_result: list = [None]
@@ -183,7 +183,7 @@ def _do_turn(
     if not use_streaming:
         # Non-streaming path: text mode (no voice), batch mode
         if show_subtitle:
-            prompt_to_use = character.build_prompt(char_id, user_input, repeat_slip=repeat_slip, subtitle=True)
+            prompt_to_use = character.build_prompt(char_id, user_input, repeat_slip=repeat_slip, subtitle=True, voice=bool(voice_id))
         else:
             prompt_to_use = system_prompt
         t_r = time.perf_counter()

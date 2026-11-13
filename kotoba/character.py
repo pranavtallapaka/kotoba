@@ -88,7 +88,7 @@ def _behavior_note(state: dict, repeat_slip: bool = False) -> str:
     return " ".join(parts)
 
 
-def build_prompt(char_id: str, user_text: str = "", repeat_slip: bool = False, subtitle: bool = False) -> str:
+def build_prompt(char_id: str, user_text: str = "", repeat_slip: bool = False, subtitle: bool = False, voice: bool = False) -> str:
     char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
     state = get_state(char_id)
     all_mems = get_memories(char_id)
@@ -117,6 +117,8 @@ def build_prompt(char_id: str, user_text: str = "", repeat_slip: bool = False, s
     result = template
     for key, val in fills.items():
         result = result.replace("{" + key + "}", val)
+    if voice:
+        result += "\n\nUse at most one emoji, placed at the end of your reply, never in the middle of a sentence."
     if subtitle:
         result += (
             "\n\nAfter your Korean reply, on a new line write: "
