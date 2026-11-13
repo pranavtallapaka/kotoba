@@ -122,20 +122,60 @@
 
 ---
 
-## TTS engine (kotoba/tts.py — Day 14)
+## TTS engine (kotoba/tts.py — Day 14, updated Day 15/16)
 
-### Current engine: MeloTTS (Korean neural TTS)
-- voice_id = "KR" (MeloTTS language code); stored in character YAML.
-- Synthesis via `melo.api.TTS(language="KR", device="cpu")`, output to temp WAV, playback via `afplay`.
-- Speed: 1.0 (normal), 0.7 (`/slow`). Instance is lazy-loaded and cached.
-- speak() is a no-op when voice_id is empty.
+### Default engine: macOS `say` (Day 15)
+- Zero model memory; uses macOS built-in speech synthesis via `say -v Yuna -o file.aiff`.
+- `voice_id = "KR"` in character YAML maps to macOS voice `Yuna` (Korean, female).
+- `synthesize()` writes a temp AIFF, `play()` uses `afplay`. Streaming pipeline unchanged.
+- Emoji and non-Korean/non-Latin symbols stripped from input before synthesis (Day 16).
+- Use `--tts melo` or `KOTOBA_TTS=melo` for MeloTTS neural synthesis (demo/recording quality).
+- `/repeat` and `/slow` (0.7× speed) work with both engines.
 
-### Installation notes (Day 14)
-- `brew install mecab mecab-ipadic` — required by fugashi (MeloTTS dep).
-- `pip install git+https://github.com/myshell-ai/MeloTTS.git --no-deps` + manual deps (see requirements.txt) to avoid tokenizers build failure (transformers==4.27.4 pins tokenizers<0.14, no Python 3.12 wheel).
-- `pip install setuptools<70` — newer setuptools drops top-level pkg_resources, breaking librosa 0.9.1.
-- macOS case-insensitive FS conflict: mecab-python3 (`MeCab/`) and python-mecab-ko (`mecab/`) collide. Fix: install python-mecab-ko first, then patch `melo/text/japanese.py` to handle missing MeCab gracefully (Japanese unused).
-- `python -m unidic download` — downloads 526 MB Japanese dictionary (required for MeloTTS import).
+### MeloTTS (neural, `--tts melo`)
+- `voice_id = "KR"`, synthesis via `melo.api.TTS(language="KR", device="mps"|"cpu")`.
+- Lazy-loaded and cached; `tts.warmup()` runs a dummy synthesis to pre-JIT the Metal path.
+- Installation: see Day 14 entry in tuning.md.
+
+---
+
+## Voice confirm-step design (kotoba/cli.py — Day 13)
+
+### Flow after each recording
+```
+I heard: <transcript>  (logprob=X.XX)
+[Enter] accept  [r] re-record  [e] edit
+>
+```
+- **Accept**: transcript goes to judge + reply pipeline unchanged.
+- **Re-record**: loops back to push-to-talk; re-records and re-transcribes.
+- **Edit**: player types a correction; `stt_corrected=True` logged to DB, judge scores the corrected text.
+
+### Rationale
+- STT errors on Korean are common (pronunciation, ambient noise). The confirm step lets the player fix transcriptions without breaking the judge.
+- Corrections are flagged in the DB so accuracy analysis can exclude them.
+- Quality warnings (clipping, too quiet) fire before transcription and prompt re-record immediately (Day 16).
+
+---
+
+## STT confidence threshold (voice.py)
+
+- `avg_logprob < -0.7` → `low_confidence = True` → character asks to repeat (no judge call, no state change).
+- Threshold chosen Day 3: catches worst outliers (ko_11 at -1.026, ko_22 at -1.381) without false-flagging valid preserved rows. Do not raise above -0.5.
+- Low confidence triggers Seo-yeon's repeat prompt, not a system message, to stay in character.
+
+---
+
+## First-audio latency (Day 15)
+
+### Pre-optimisation baseline (streaming disabled, MeloTTS, full reply synthesised as one chunk)
+- tts1 ≈ 14–20 s from accept to first audio.
+
+### Post-optimisation (Day 15–16: say engine, streaming sentences, deferred judge, turbo STT)
+- Sentence-streaming pipeline: LLM tokens → sentence queue → TTS consumer thread.
+- Judge deferred until first sentence queued (no GPU contention at t=0).
+- `say` engine eliminates MeloTTS model load (~15 s cold, ~2 s warm synthesis per sentence).
+- Target: tts1 < 3 s. Measure with `python -m kotoba.cli seoyeon --bench tests/voice_samples/ --debug`.
 
 ---
 
