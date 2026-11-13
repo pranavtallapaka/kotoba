@@ -94,8 +94,9 @@ def apply_turn(
     for ev in events:
         db.log_event(turn_id=turn_id, variable=ev["variable"], delta=ev["delta"], reason=ev["reason"])
 
-    for fact in result.new_memories:
-        db.add_memory(char_id, fact, source_turn_id=turn_id)
+    for mem in result.new_memories:
+        if mem.about == "user":
+            db.add_memory(char_id, mem.fact, source_turn_id=turn_id)
 
     return events
 

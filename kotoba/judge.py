@@ -37,6 +37,12 @@ class GrammarError(BaseModel):
     severity: Literal["minor", "major"]
 
 
+class MemoryItem(BaseModel):
+    about: Literal["user", "seoyeon"]
+    fact: str
+    source_quote: str  # exact substring from the turn that reveals this fact
+
+
 class JudgeResult(BaseModel):
     register_used: Literal["hapsyo", "haeyo", "banmal"]
     register_expected: str
@@ -45,7 +51,7 @@ class JudgeResult(BaseModel):
     honorific_errors: list[str]
     grammar_errors: list[GrammarError]
     beat_passed: bool | None
-    new_memories: list[str]
+    new_memories: list[MemoryItem]
     state_deltas: dict[str, int]
     offense: Literal["none", "mild", "serious"]
     repair_required: bool
@@ -106,14 +112,15 @@ def _format_state_facts(state: dict) -> str:
     )
 
 
-def _format_history(history: list[dict]) -> str:
+def _format_history(history: list[dict], char_name: str = "CHARACTER") -> str:
     if not history:
         return "(start of conversation)"
     tail = history[-8:]  # last 4 pairs
+    char_label = char_name.upper()
     lines = []
     for msg in tail:
-        role = "Player" if msg["role"] == "user" else "Character"
-        lines.append(f"{role}: {msg['content']}")
+        label = "PLAYER" if msg["role"] == "user" else char_label
+        lines.append(f"{label}: {msg['content']}")
     return "\n".join(lines)
 
 
@@ -140,10 +147,11 @@ def judge(
     beat: dict | None = None,
 ) -> JudgeResult:
     """Score one player turn and return a JudgeResult."""
+    char_name = character.get("name", "CHARACTER")
     fills = {
         "character_facts": _format_character_facts(character),
         "state_facts": _format_state_facts(state),
-        "history": _format_history(history),
+        "history": _format_history(history, char_name),
         "beat_context": _format_beat(beat),
     }
     template = TEMPLATE.read_text()
@@ -155,6 +163,13 @@ def judge(
         {"role": "user", "content": f'Analyze this player turn: "{text}"'},
     ]
     result = llm.chat_json(messages, JudgeResult, temperature=0.1, num_predict=400, model=JUDGE_MODEL)
+
+    # Drop user memories whose source_quote doesn't appear verbatim in the player turn.
+    # This prevents the model from attributing the character's own words to the player.
+    result.new_memories = [
+        m for m in result.new_memories
+        if m.about != "user" or m.source_quote in text
+    ]
 
     val_reg, val_conf, _ = validator_ko.classify(text)
     result.validator_register = val_reg

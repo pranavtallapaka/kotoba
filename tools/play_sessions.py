@@ -61,7 +61,7 @@ def run_session(turns: list[str], label: str) -> None:
         print(f"You: {text}")
         result = judge_module.judge(text=text, character=char, state=state, history=history)
         state_module.apply_turn(result, CHAR_ID, player)
-        session_memories.extend(result.new_memories)
+        session_memories.extend(m.fact for m in result.new_memories if m.about == "user")
 
         slip_msg = state_module.explain_slip(result, text)
         if slip_msg:

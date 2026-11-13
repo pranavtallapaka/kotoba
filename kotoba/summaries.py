@@ -6,7 +6,7 @@ Write a brief session summary for a Korean language learner. Use exactly 3 short
 
 Paragraph 1: What changed in the relationship and why — be specific about moments (1–2 sentences).
 Paragraph 2: Up to 3 language slips with the correct Korean form, like '먹어 → 먹어요 (반말 instead of 해요체)'. Write 'No slips this session.' if there were none.
-Paragraph 3: One specific thing she will remember about the player (1 sentence). Write 'Nothing new to remember.' if no personal facts came up.
+Paragraph 3: One specific thing she will remember about the player (1 sentence). You MUST take this only from the "New facts learned about the player" list provided. Do not invent facts or use anything the character said about herself. Write 'Nothing new to remember.' if that list is empty.
 
 Write in plain English. Mention actual Korean forms where relevant.\
 """
@@ -25,8 +25,8 @@ def generate(
 
     conv_lines = []
     for msg in history[-12:]:
-        role = "You" if msg["role"] == "user" else "서연"
-        conv_lines.append(f"{role}: {msg['content']}")
+        label = "PLAYER" if msg["role"] == "user" else "SEOYEON"
+        conv_lines.append(f"{label}: {msg['content']}")
 
     slips_text = (
         "\n".join(f"- {s}" for s in session_slips[:3]) if session_slips else "(none)"

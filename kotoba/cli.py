@@ -163,7 +163,7 @@ def _do_turn(
         _judge_ms[0] = int((time.perf_counter() - tj) * 1000)
         _events[:] = state_module.apply_turn(_judge_result[0], char_id, player)
         _reply_done.wait()
-        session_memories.extend(_judge_result[0].new_memories)
+        session_memories.extend(m.fact for m in _judge_result[0].new_memories if m.about == "user")
         slip_msg = state_module.explain_slip(_judge_result[0], user_input)
         if slip_msg:
             session_slips.append(slip_msg)
