@@ -129,7 +129,7 @@ Also judged: -(으)시- when talking about someone senior (missing 께서 alone 
 
 The two leads cover the two halves of a new life, **work and home**, and teach different lessons: Seo-yeon's arc *equalizes* through age and hierarchy (you earn casual speech with a senior), Ren's arc moves slowly from strangers to friends between peers, and teaches indirectness. Both progress through several visible milestones, not just a speech-level switch.
 
-**Korean lead: 박서연 (Park Seo-yeon), your 선배 at a Seoul startup**
+**Korean lead: 김서연 (Kim Seo-yeon), your 선배 at a Seoul startup**
 
 | | |
 | --- | --- |
@@ -255,7 +255,7 @@ Static content (characters, episodes) lives in YAML files in git; everything tha
 ```yaml
 id: seoyeon
 language: ko
-name: 박서연
+name: 김서연
 role: senior_coworker        # 선배
 age_offset: +2               # relative to the player
 group: in

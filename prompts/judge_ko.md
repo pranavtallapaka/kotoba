@@ -37,7 +37,7 @@ Identify `register_used` from sentence-final endings. Set `register_match` = tru
 
 ### 2. Offenses — only flag if in the character's offense list above
 - **banmal_before_offer**: CONDITION — register_used MUST equal "banmal". Do NOT flag this if register_used is "hapsyo"; hapsyo is stiff but never casual. Only 반말 endings (no 요, not -습니다) trigger this offense.
-- **name_ssi_to_senior**: player addresses the senior using her given name or full name + 씨 (e.g. 서연씨, 박서연씨) instead of 선배/선배님. Flag whenever the text contains the character's name immediately followed by 씨 (with or without space) and no 선배/선배님 title is present. This is a mild offense; use respect -2.
+- **name_ssi_to_senior**: player addresses the senior using her given name or full name + 씨 (e.g. 서연씨, 김서연씨) instead of 선배/선배님. Flag whenever the text contains the character's name immediately followed by 씨 (with or without space) and no 선배/선배님 title is present. This is a mild offense; use respect -2.
 - **bare_name_or_no_title_in_front_of_boss**: player refers to Seo-yeon without 선배/선배님 while a superior can hear.
 - **missing_honorifics_about_superiors**: player mentions a superior (anyone with title 팀장, 부장, 사장, 이사, or described as higher rank) and does one or more of:
   - missing -(으)시- in the verb (e.g., 했어요 → 하셨어요, 와요 → 오세요, 뭐 해요 → 뭐 하세요)

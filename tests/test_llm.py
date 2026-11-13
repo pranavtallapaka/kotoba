@@ -17,7 +17,7 @@ class RegisterCheck(BaseModel):
 @pytest.mark.integration
 def test_korean_chat_reply():
     messages = [
-        {"role": "system", "content": "You are 박서연, a Korean 선배 at a startup. Reply in Korean only."},
+        {"role": "system", "content": "You are 김서연, a Korean 선배 at a startup. Reply in Korean only."},
         {"role": "user",   "content": "안녕하세요, 선배님. 오늘 날씨가 좋네요."},
     ]
     reply = chat(messages)

@@ -10,7 +10,7 @@ A voice app for practicing Korean and Japanese with characters who remember how 
 
 Language learning apps teach you vocabulary and grammar. What they don't teach is the social layer — who gets formal speech, when you can drop it, what happens if you get it wrong. In Korean and Japanese, register (how formal you sound) is not a stylistic choice. It encodes the relationship. Use the wrong level with your boss and it lands.
 
-kotoba makes the relationship itself the thing you train. Each character has a state — closeness, respect, whether you've offended them — that changes based on how you speak, and persists across sessions. Earn enough trust and 박서연 will offer to drop formalities. Use 반말 too early and she goes cold.
+kotoba makes the relationship itself the thing you train. Each character has a state — closeness, respect, whether you've offended them — that changes based on how you speak, and persists across sessions. Earn enough trust and 김서연 will offer to drop formalities. Use 반말 too early and she goes cold.
 
 The app never tells you what you said wrong. The character reacts to it.
 
@@ -20,7 +20,7 @@ The app never tells you what you said wrong. The character reacts to it.
 
 The shared premise: **you've just moved to Seoul or Japan for work.**
 
-### 박서연 (Park Seo-yeon) — your 선배 at a Seoul startup
+### 김서연 (Kim Seo-yeon) — your 선배 at a Seoul startup
 
 Marketing, two years older than you, assigned to show you the ropes. Sharp, a little overworked, quietly ambitious. Her first real question is "몇 년생이에요?"
 

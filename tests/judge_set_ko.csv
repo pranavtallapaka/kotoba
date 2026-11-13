@@ -42,4 +42,4 @@ id,category,addressee_or_subject,text,expected_register,expected_offense_ids,not
 41,name_ssi_to_senior,seoyeon,서연씨 어디 가요?,haeyo,name_ssi_to_senior,"First name + 씨 to senior (should use 선배님 or 선배)"
 42,name_ssi_to_senior,seoyeon,서연씨 지금 바빠요?,haeyo,name_ssi_to_senior,"First name + 씨; too familiar for a senior (should use 선배님)"
 43,name_ssi_to_senior,seoyeon,서연씨 감사해요!,haeyo,name_ssi_to_senior,"First name + 씨 without senior title (should use 선배님 감사해요)"
-44,name_ssi_to_senior,seoyeon,박서연씨 이거 어떻게 해요?,haeyo,name_ssi_to_senior,"Full name + 씨 to senior (should address as 선배님)"
+44,name_ssi_to_senior,seoyeon,김서연씨 이거 어떻게 해요?,haeyo,name_ssi_to_senior,"Full name + 씨 to senior (should address as 선배님)"

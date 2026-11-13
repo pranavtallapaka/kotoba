@@ -5,7 +5,7 @@ state (closeness, respect, offense, register) that changes based on how the
 user speaks to them. Mistakes have social consequences inside the scene.
 
 ## Characters
-- Korean lead: 박서연 (Park Seo-yeon), senior coworker at a Seoul startup
+- Korean lead: 김서연 (Kim Seo-yeon), senior coworker at a Seoul startup
 - Japanese lead: 中島蓮 (Nakajima Ren), next-door neighbor in Japan
 
 ## Key rules
