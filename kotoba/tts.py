@@ -72,6 +72,11 @@ def speak(text: str, voice_id: str, slow: bool = False) -> None:
 
 
 def warmup(voice_id: str) -> None:
-    """Pre-load the TTS model so the first synthesis call isn't delayed by model init."""
-    if voice_id:
-        _get_tts(voice_id)
+    """Load model and run a dummy synthesis so first real call is fully warm."""
+    if not voice_id:
+        return
+    _get_tts(voice_id)
+    # One dummy synthesis warms up any JIT / Metal compilation path.
+    wav = synthesize("안녕", voice_id)
+    if wav and os.path.exists(wav):
+        os.unlink(wav)

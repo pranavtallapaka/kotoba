@@ -153,7 +153,7 @@ def judge(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": f'Analyze this player turn: "{text}"'},
     ]
-    result = llm.chat_json(messages, JudgeResult, temperature=0.1)
+    result = llm.chat_json(messages, JudgeResult, temperature=0.1, num_predict=400)
 
     val_reg, val_conf, _ = validator_ko.classify(text)
     result.validator_register = val_reg

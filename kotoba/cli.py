@@ -20,7 +20,7 @@ from pathlib import Path
 
 import yaml
 
-from kotoba import character, judge as judge_module, llm, state as state_module, summaries, tts
+from kotoba import character, judge as judge_module, llm, stt_config, state as state_module, summaries, tts
 from kotoba.db import (
     end_session,
     get_state,
@@ -130,6 +130,7 @@ def _do_turn(
     show_subtitle: bool,
     voice_id: str = "",
     debug: bool = False,
+    timing_out: list | None = None,
 ) -> tuple[judge_module.JudgeResult, list[dict], str]:
     """Parallel judge + streaming reply/TTS. Returns (result, events, reply_text)."""
     t0 = time.perf_counter()
@@ -142,21 +143,21 @@ def _do_turn(
     # Pre-build character prompt now, before judge may update state
     system_prompt = character.build_prompt(char_id, user_input, repeat_slip=repeat_slip)
 
-    # --- Thread A: judge (runs in parallel with reply) ---
+    # --- Thread A: judge — starts only after reply's first sentence is queued for TTS ---
     _judge_result: list = [None]
     _judge_ms: list = [0]
     _events: list = []
     _reply_done = threading.Event()
+    _first_sentence_sent = threading.Event()  # set by producer when first TTS sentence queued
 
     def _run_judge():
+        _first_sentence_sent.wait()  # don't compete with the reply LLM call at t=0
         tj = time.perf_counter()
         _judge_result[0] = judge_module.judge(
             text=user_input, character=char, state=state, history=history
         )
         _judge_ms[0] = int((time.perf_counter() - tj) * 1000)
-        # Apply state changes immediately (don't wait for reply)
         _events[:] = state_module.apply_turn(_judge_result[0], char_id, player)
-        # Wait for reply text to finish printing before showing slip
         _reply_done.wait()
         session_memories.extend(_judge_result[0].new_memories)
         slip_msg = state_module.explain_slip(_judge_result[0], user_input)
@@ -204,6 +205,7 @@ def _do_turn(
             print(f"       ({subtitle_text})")
         print()
 
+        _first_sentence_sent.set()  # no TTS pipeline; unblock judge immediately
         _reply_done.set()
 
     else:
@@ -231,6 +233,7 @@ def _do_turn(
                             if not first_sent:
                                 _llm_first_ms[0] = int((time.perf_counter() - t0) * 1000)
                                 first_sent = True
+                                _first_sentence_sent.set()  # reply is streaming; start judge now
                             sentence_q.put(sent)
                         korean_buf = korean_buf[m.end():]
                     else:
@@ -238,6 +241,7 @@ def _do_turn(
             if korean_buf.strip():
                 if not first_sent:
                     _llm_first_ms[0] = int((time.perf_counter() - t0) * 1000)
+                    _first_sentence_sent.set()
                 sentence_q.put(korean_buf.strip())
             print()
             _reply_ms[0] = int((time.perf_counter() - t_start) * 1000)
@@ -312,6 +316,15 @@ def _do_turn(
         t_reply_ms=_reply_ms[0],
         t_tts_first_ms=_tts_first_ms[0],
     )
+
+    if timing_out is not None:
+        timing_out.append({
+            "stt": t_stt_ms,
+            "judge": _judge_ms[0],
+            "reply": _reply_ms[0],
+            "llm1": _llm_first_ms[0],
+            "tts1": _tts_first_ms[0],
+        })
 
     return _judge_result[0], _events, reply_text
 
@@ -389,6 +402,97 @@ def _run_batch(
     print("\n[Batch session ended]")
 
 
+def _run_bench(char_id: str, audio_dir: Path, voice_id: str) -> None:
+    """Bench mode: startup warmup + run WAVs with TTS, print only median timings."""
+    import statistics
+    from kotoba.voice import transcribe_file
+
+    init_db()
+    char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
+    char_name = char.get("name", char_id)
+    player = load_player()
+
+    t_startup = time.perf_counter()
+    print(f"[Bench] Loading models (STT={stt_config._model_key})…", flush=True)
+    errors: list[str] = []
+
+    def _w_stt():
+        try: stt_config.warmup()
+        except Exception as e: errors.append(f"stt: {e}")
+
+    def _w_tts():
+        try: tts.warmup(voice_id)
+        except Exception as e: errors.append(f"tts: {e}")
+
+    def _w_llm():
+        try: llm.warmup()
+        except Exception as e: errors.append(f"llm: {e}")
+
+    warmup_threads = [threading.Thread(target=f) for f in (_w_stt, _w_tts, _w_llm)]
+    for t in warmup_threads: t.start()
+    for t in warmup_threads: t.join()
+
+    startup_s = time.perf_counter() - t_startup
+    try:
+        import resource, sys as _sys
+        rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        ram_mb = rss // (1024 * 1024) if _sys.platform == "darwin" else rss // 1024
+        ram_note = f"  RAM={ram_mb} MB"
+    except Exception:
+        ram_note = ""
+    if errors:
+        print(f"[Bench] warmup warnings: {'; '.join(errors)}", flush=True)
+    print(f"[Bench] ready in {startup_s:.1f}s{ram_note}\n", flush=True)
+
+    wav_files = sorted(audio_dir.glob("*.wav"))
+    if not wav_files:
+        print(f"[Bench] no .wav files in {audio_dir}")
+        return
+
+    session_id = start_session(char_id)
+    history: list[dict] = []
+    session_slips: list[str] = []
+    session_memories: list[str] = []
+    all_timings: list[dict] = []
+
+    for i, wav in enumerate(wav_files, 1):
+        print(f"\n[T{i}/{len(wav_files)}] {wav.name}", flush=True)
+        stt = transcribe_file(str(wav), language="ko")
+        if stt.low_confidence:
+            print(f"  LOW CONFIDENCE — skipped")
+            continue
+        print(f"  heard: {stt.text}")
+        stt_meta = {
+            "transcript": stt.text, "corrected": False,
+            "avg_logprob": stt.avg_logprob, "no_speech_prob": stt.no_speech_prob,
+            "t_stt_ms": stt.t_stt_ms,
+        }
+        _do_turn(
+            user_input=stt.text, char_id=char_id, char=char, player=player,
+            history=history, session_id=session_id,
+            session_slips=session_slips, session_memories=session_memories,
+            stt_meta=stt_meta, show_subtitle=False,
+            voice_id=voice_id, debug=False, timing_out=all_timings,
+        )
+
+    end_session(session_id)
+
+    if not all_timings:
+        print("[Bench] no turns completed")
+        return
+
+    keys = ["stt", "judge", "reply", "llm1", "tts1"]
+    vals = {k: [t[k] for t in all_timings if t.get(k)] for k in keys}
+    n = len(all_timings)
+    print(f"\n[Bench] median over {n} turn(s):")
+    parts = []
+    for k in keys:
+        v = vals[k]
+        if v:
+            parts.append(f"  {k}={statistics.median(v)/1000:.2f}s")
+    print("".join(parts))
+
+
 def run(char_id: str, voice: bool = False, audio_dir: Path | None = None, debug: bool = False) -> None:
     init_db()
     session_id = start_session(char_id)
@@ -406,9 +510,48 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None, debug:
 
     char_voice_id = char.get("voice_id") or ""
 
-    # Pre-load TTS model in background so the first turn isn't delayed by init
     if voice and char_voice_id:
-        threading.Thread(target=tts.warmup, args=(char_voice_id,), daemon=True).start()
+        t_startup = time.perf_counter()
+        print(f"[Startup] Loading models (STT={stt_config._model_key}, LLM={char_id})…", flush=True)
+        _startup_errors: list[str] = []
+
+        def _w_stt():
+            try:
+                stt_config.warmup()
+            except Exception as e:
+                _startup_errors.append(f"stt: {e}")
+
+        def _w_tts():
+            try:
+                tts.warmup(char_voice_id)
+            except Exception as e:
+                _startup_errors.append(f"tts: {e}")
+
+        def _w_llm():
+            try:
+                llm.warmup()
+            except Exception as e:
+                _startup_errors.append(f"llm: {e}")
+
+        _warmup_threads = [threading.Thread(target=f) for f in (_w_stt, _w_tts, _w_llm)]
+        for t in _warmup_threads:
+            t.start()
+        for t in _warmup_threads:
+            t.join()
+
+        startup_s = time.perf_counter() - t_startup
+
+        try:
+            import resource, sys as _sys
+            rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            ram_mb = rss // (1024 * 1024) if _sys.platform == "darwin" else rss // 1024
+            ram_note = f"  RAM={ram_mb} MB"
+        except Exception:
+            ram_note = ""
+
+        if _startup_errors:
+            print(f"[Startup] warnings: {'; '.join(_startup_errors)}", flush=True)
+        print(f"[Startup] ready in {startup_s:.1f}s{ram_note}\n", flush=True)
 
     history: list[dict] = []
     last_reply: str = ""
@@ -558,6 +701,13 @@ if __name__ == "__main__":
         help="SQLite database path (default: kotoba.db)",
     )
     parser.add_argument("--debug", action="store_true", help="print per-turn timing line")
+    parser.add_argument(
+        "--bench",
+        metavar="DIR",
+        nargs="?",
+        const="tests/voice_samples",
+        help="benchmark: startup + run WAVs from DIR (default: tests/voice_samples), print median timings",
+    )
     args = parser.parse_args()
 
     _prod_db = (ROOT / "kotoba.db").resolve()
@@ -567,6 +717,15 @@ if __name__ == "__main__":
         os.environ["KOTOBA_DB"] = str(resolved_db)
     else:
         resolved_db = _prod_db
+
+    if args.bench:
+        bench_dir = Path(args.bench)
+        if not args.db:
+            os.environ["KOTOBA_DB"] = str(ROOT / "kotoba_bench.db")
+        char_yaml = yaml.safe_load((CHARS_DIR / f"{args.char_id}.yaml").read_text())
+        voice_id = char_yaml.get("voice_id") or ""
+        _run_bench(args.char_id, bench_dir, voice_id)
+        sys.exit(0)
 
     if args.audio_dir and resolved_db == _prod_db:
         print(

@@ -26,6 +26,7 @@ _CHAT_URL = f"{OLLAMA_URL}/api/chat"
 
 
 def _post(payload: dict) -> dict:
+    payload = {"keep_alive": "30m", **payload}
     body = json.dumps(payload).encode()
     req = urllib.request.Request(
         _CHAT_URL,
@@ -37,6 +38,12 @@ def _post(payload: dict) -> dict:
             return json.load(resp)
     except urllib.error.URLError as exc:
         raise RuntimeError(f"Ollama unreachable at {_CHAT_URL}: {exc}") from exc
+
+
+def warmup(model: str = MODEL) -> None:
+    """Wake Ollama and pin the model in memory for 30 min."""
+    _post({"model": model, "messages": [{"role": "user", "content": "hi"}],
+           "stream": False, "think": False, "options": {"temperature": 0.0, "num_predict": 1}})
 
 
 def chat(
@@ -57,6 +64,8 @@ def chat(
     data = _post(payload)
     secs = time.perf_counter() - t0
     reply = data["message"]["content"]
+    if reply.lstrip().startswith("<think>"):
+        log.warning("chat: thinking detected despite think=False — raw starts: %s", reply[:60])
     log.debug("chat  %.2fs  model=%s  think=%s  chars=%d", secs, model, think, len(reply))
     return reply
 
@@ -125,15 +134,19 @@ def chat_json(
     temperature: float = 0.2,
     think: bool = False,
     model: str = MODEL,
+    num_predict: int | None = None,
 ) -> T:
     json_schema = _resolve_refs(schema.model_json_schema())
+    options: dict = {"temperature": temperature}
+    if num_predict is not None:
+        options["num_predict"] = num_predict
     payload = {
         "model": model,
         "messages": messages,
         "stream": False,
         "think": think,
         "format": json_schema,
-        "options": {"temperature": temperature},
+        "options": options,
     }
 
     def _attempt(extra_messages: list[dict]) -> T:
@@ -143,6 +156,8 @@ def chat_json(
         data = _post(p)
         secs = time.perf_counter() - t0
         raw = data["message"]["content"]
+        if raw.lstrip().startswith("<think>"):
+            log.warning("chat_json: thinking detected despite think=False — schema=%s raw starts: %s", schema.__name__, raw[:60])
         log.debug(
             "chat_json  %.2fs  model=%s  schema=%s  raw=%s",
             secs, model, schema.__name__, raw[:120],
