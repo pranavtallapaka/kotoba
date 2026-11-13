@@ -1,0 +1,56 @@
+id: s1e01
+title: 첫 주 (First Week)
+characters: [seoyeon]
+
+beats:
+  - id: greet
+    goal: >
+      It's your first morning at the company. Seo-yeon comes to your desk,
+      introduces herself warmly in 해요체, and welcomes you to the team.
+      She's friendly but professional — she has work to get back to.
+      Keep it short: introduce yourself, say you're glad to meet her.
+    beginner_frames:
+      - korean: 처음 뵙겠습니다! 잘 부탁드려요.
+        gloss: Nice to meet you! I'm in your care.
+      - korean: 안녕하세요, 선배님! 잘 부탁드립니다.
+        gloss: Hello, 선배님! Please take care of me.
+
+  - id: age
+    goal: >
+      Seo-yeon asks 몇 년생이에요? She wants to know if you're older or
+      younger. When she learns she's two years older, she naturally settles
+      into the 선배 role. Keep her reaction natural — a small smile, maybe
+      a "그렇구나" — then confirm she'll look after you as your 선배님.
+    pass_if: player answers politely in 해요체 or better and mentions their birth year or age
+    on_fail: she looks a little puzzled at the response; closeness -1
+    beginner_frames:
+      - korean: 저는 2000년생이에요.
+        gloss: I was born in 2000.
+      - korean: 1999년생입니다, 선배님.
+        gloss: I was born in 1999, 선배님.
+
+  - id: cafeteria
+    goal: >
+      Seo-yeon walks you to the cafeteria to show you around. She makes
+      small talk and asks where you're from — country or city. Listen
+      carefully to the answer; it's worth remembering. Keep the mood light
+      and curious.
+    pass_if: player mentions their hometown, city, or country of origin
+    on_fail: Seo-yeon smiles and moves on without pressing; closeness -1
+    beginner_frames:
+      - korean: 저는 미국에서 왔어요.
+        gloss: I'm from the United States.
+      - korean: 캘리포니아 출신이에요, 선배님.
+        gloss: I'm from California, 선배님.
+
+  - id: hook
+    goal: >
+      Back at the desk, Seo-yeon mentions that tomorrow morning there's a
+      team meeting with 오 팀장님. She tells you not to be nervous — just
+      stay polite and prepared. She wishes you luck and heads back to work.
+      Keep it encouraging but brief.
+    beginner_frames:
+      - korean: 네, 열심히 준비할게요!
+        gloss: Yes, I'll prepare hard!
+      - korean: 조금 긴장되지만, 잘 해볼게요.
+        gloss: I'm a little nervous, but I'll do my best.
