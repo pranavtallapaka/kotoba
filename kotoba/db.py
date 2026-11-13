@@ -32,9 +32,27 @@ def _connect() -> sqlite3.Connection:
 # Init
 # ---------------------------------------------------------------------------
 
+def _migrate() -> None:
+    """Add columns introduced after initial schema — idempotent."""
+    conn = _connect()
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(turns)")}
+    new_cols = {
+        "stt_transcript": "TEXT",
+        "stt_corrected": "INTEGER DEFAULT 0",
+        "stt_avg_logprob": "REAL",
+        "stt_no_speech_prob": "REAL",
+    }
+    for col, typedef in new_cols.items():
+        if col not in existing:
+            conn.execute(f"ALTER TABLE turns ADD COLUMN {col} {typedef}")
+    conn.commit()
+    conn.close()
+
+
 def init_db() -> None:
     conn = _connect()
     conn.executescript(SCHEMA.read_text())
+    _migrate()
     if conn.execute("SELECT COUNT(*) FROM player").fetchone()[0] == 0:
         p = yaml.safe_load(PLAYER_YAML.read_text())
         conn.execute(
@@ -164,14 +182,21 @@ def log_turn(
     user_register: str,
     reply_text: str,
     judge_json: dict,
+    *,
+    stt_transcript: str | None = None,
+    stt_corrected: bool = False,
+    stt_avg_logprob: float | None = None,
+    stt_no_speech_prob: float | None = None,
 ) -> int:
     conn = _connect()
     cur = conn.execute(
         "INSERT INTO turns "
-        "(session_id, user_text_raw, user_register, reply_text, judge_json) "
-        "VALUES (?, ?, ?, ?, ?)",
+        "(session_id, user_text_raw, user_register, reply_text, judge_json, "
+        "stt_transcript, stt_corrected, stt_avg_logprob, stt_no_speech_prob) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (session_id, user_text_raw, user_register, reply_text,
-         json.dumps(judge_json)),
+         json.dumps(judge_json),
+         stt_transcript, int(stt_corrected), stt_avg_logprob, stt_no_speech_prob),
     )
     conn.commit()
     turn_id = cur.lastrowid

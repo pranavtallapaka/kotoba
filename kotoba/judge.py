@@ -6,6 +6,7 @@ The judge never writes dialogue. It runs at low temperature and returns
 structured JSON validated by Pydantic. Delta bounds are enforced here in
 code after parsing so one turn cannot swing the relationship wildly.
 """
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -166,6 +167,17 @@ def judge(
     # Entries without → are bare address terms the LLM mistakenly flagged
     # (e.g. ['선배님'] when the player used the term correctly).
     result.honorific_errors = [e for e in result.honorific_errors if "→" in e]
+
+    # name_ssi_to_senior: inject offense if player used senior's name + 씨 without a title.
+    if "name_ssi_to_senior" in character.get("offenses", []):
+        full_name = character.get("name", "")
+        given = full_name[-2:] if len(full_name) >= 2 else ""
+        if given and re.search(rf"{given}\s*씨", text) and "name_ssi_to_senior" not in result.offense_ids:
+            result.offense_ids.append("name_ssi_to_senior")
+            if result.offense == "none":
+                result.offense = "mild"
+            if result.state_deltas.get("respect", 0) >= 0:
+                result.state_deltas["respect"] = -2
 
     # banmal_before_offer requires the player to have actually used banmal.
     # The LLM sometimes fires it on haeyo turns when it sees a medial -어/아 morpheme

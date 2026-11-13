@@ -52,13 +52,17 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE TABLE IF NOT EXISTS turns (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id    INTEGER NOT NULL,
-    user_text_raw TEXT,
-    user_register TEXT,
-    reply_text    TEXT,
-    judge_json    TEXT,   -- raw JSON blob from judge
-    created_at    TEXT    DEFAULT (datetime('now')),
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id       INTEGER NOT NULL,
+    user_text_raw    TEXT,
+    user_register    TEXT,
+    reply_text       TEXT,
+    judge_json       TEXT,    -- raw JSON blob from judge
+    stt_transcript   TEXT,    -- raw whisper output before any user correction
+    stt_corrected    INTEGER  DEFAULT 0,   -- 1 if user typed 'e' and edited
+    stt_avg_logprob  REAL,
+    stt_no_speech_prob REAL,
+    created_at       TEXT     DEFAULT (datetime('now')),
     FOREIGN KEY (session_id) REFERENCES sessions(id)
 );
 

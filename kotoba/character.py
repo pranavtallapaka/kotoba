@@ -60,7 +60,7 @@ def _select_memories(memories: list[dict], user_text: str, n: int = 5) -> list[d
     return result
 
 
-def _behavior_note(state: dict) -> str:
+def _behavior_note(state: dict, repeat_slip: bool = False) -> str:
     parts = []
     if state["respect"] < 40:
         parts.append(
@@ -77,12 +77,17 @@ def _behavior_note(state: dict) -> str:
             "Serious offense. Be cold and curt. Ask '무슨 뜻이에요?' or similar before "
             "proceeding. Do not act warmly until 한 씨 addresses the issue."
         )
+    if repeat_slip:
+        parts.append(
+            "한 씨 has made repeated address/register slips this session. "
+            "Be noticeably cooler: short replies, no exclamation marks, slightly more formal distance."
+        )
     if not parts:
         parts.append("Normal. Be warm but professional.")
     return " ".join(parts)
 
 
-def build_prompt(char_id: str, user_text: str = "") -> str:
+def build_prompt(char_id: str, user_text: str = "", repeat_slip: bool = False) -> str:
     char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
     state = get_state(char_id)
     all_mems = get_memories(char_id)
@@ -105,7 +110,7 @@ def build_prompt(char_id: str, user_text: str = "") -> str:
             state["register_expected"], state["register_expected"]
         ),
         "memories": memories_text,
-        "behavior_note": _behavior_note(state),
+        "behavior_note": _behavior_note(state, repeat_slip=repeat_slip),
     }
     template = TEMPLATE.read_text()
     result = template
@@ -114,11 +119,33 @@ def build_prompt(char_id: str, user_text: str = "") -> str:
     return result
 
 
-def reply(history: list[dict], user_text: str, char_id: str) -> str:
-    system_prompt = build_prompt(char_id, user_text)
+def reply(
+    history: list[dict],
+    user_text: str,
+    char_id: str,
+    subtitle: bool = False,
+    repeat_slip: bool = False,
+) -> str | tuple[str, str]:
+    """Generate a character reply.
+
+    subtitle=True: returns (korean, english) in one LLM call — no extra latency.
+    subtitle=False: returns the Korean string (default, backward-compatible).
+    """
+    system_prompt = build_prompt(char_id, user_text, repeat_slip=repeat_slip)
+    if subtitle:
+        system_prompt += (
+            "\n\nAfter your Korean reply, on a new line write: "
+            "EN: <natural English translation of your reply>"
+        )
     messages = (
         [{"role": "system", "content": system_prompt}]
         + history
         + [{"role": "user", "content": user_text}]
     )
-    return llm.chat(messages, temperature=0.8)
+    raw = llm.chat(messages, temperature=0.8)
+    if subtitle:
+        if "\nEN: " in raw:
+            korean, english = raw.split("\nEN: ", 1)
+            return korean.strip(), english.strip()
+        return raw.strip(), ""
+    return raw

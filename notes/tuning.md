@@ -7,6 +7,9 @@
 2026-11-12  Day 9: consequences wired. state.py applies bounded deltas (closeness -3..+3, respect -10..+3), beginner tolerance (respect capped at -3 for slips; grammar-only = 0 cost), relationship_speed scales positive closeness. character.md behavior_note: cooler at respect<40, awkward beat at mild offense, repair demand at serious. explain_slip() shows one English line after register/honorific errors. /why command. 4-turn test: 3 polite + 1 반말 → respect 50→46, offense→mild, slip explanation fires. Stochastic honorific false-positives from judge still possible (preexisting issue). Next: TTS or episode beats.
 
 2026-11-12  Day 11: 3 live sessions analysed (14 new turns). Findings and fix #1 applied.
+2026-11-12  Day 12: Milestone 2 complete. Fixes #2/#3 applied (honorific filter, relationship_speed 2.0). decisions.md expanded with judge/validator accuracy, delta bounds, beginner tolerance, slip format. Next: voice input (Milestone 3).
+2026-11-12  Day 13: audio batch test works. Three fixes: (1) name_ssi_to_senior offense — rule-based regex enforcer in judge.py + explain_slip message + 4 CSV rows; (2) repeated slips → cooler tone via repeat_slip flag through build_prompt/_behavior_note; (3) character.md rule 9 for workplace farewells. Next: run eval to confirm name_ssi_to_senior rows pass.
+2026-11-12  Day 13: voice input + subtitle + batch test done. stt_config.py (whisper-large wrapper), voice.py (push-to-talk, 16 kHz mono + transcribe_file for batch), --voice flag in cli.py. Auto-subtitle when support_level_ko≤2: EN: line appended to system prompt, parsed in one LLM call. --audio-dir feeds sorted WAVs, auto-accepts, prints compact per-turn table. 5 voice_samples created (Yuna TTS, afconvert 16 kHz). STT columns in turns table. Next: live voice test.
 
   FINDINGS
   1. Judge inconsistencies

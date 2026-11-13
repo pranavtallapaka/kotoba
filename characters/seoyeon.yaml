@@ -15,6 +15,7 @@ offenses:
   - banmal_before_offer
   - bare_name_or_no_title_in_front_of_boss
   - missing_honorifics_about_superiors
+  - name_ssi_to_senior
 persona: >
   Marketing at a Seoul startup, two years ahead of you. Sharp, a little
   overworked, quietly ambitious. Covers for people she likes. Her first

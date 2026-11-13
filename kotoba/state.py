@@ -40,7 +40,11 @@ def apply_turn(
         and not result.honorific_errors
         and result.register_match
     )
-    has_slip = not result.register_match or bool(result.honorific_errors)
+    has_slip = not result.register_match or bool(result.honorific_errors) or bool(result.offense_ids)
+
+    # No closeness gain on any slip turn
+    if has_slip and raw.get("closeness", 0) > 0:
+        raw["closeness"] = 0
 
     if is_beginner:
         if grammar_only and raw.get("respect", 0) < 0:
@@ -97,7 +101,10 @@ def apply_turn(
 
 
 def explain_slip(result: JudgeResult, user_text: str) -> str | None:
-    """Return one English sentence explaining a register or honorific slip, or None."""
+    """Return one English sentence explaining a register, honorific, or address slip, or None."""
+    if "name_ssi_to_senior" in result.offense_ids:
+        return "Calling a senior coworker 'name + 씨' sounds too familiar. Use 선배 or 선배님."
+
     if result.register_match and not result.honorific_errors:
         return None
 

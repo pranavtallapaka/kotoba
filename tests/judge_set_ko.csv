@@ -39,3 +39,7 @@ id,category,addressee_or_subject,text,expected_register,expected_offense_ids,not
 38,grammar_only,seoyeon,어제 먹는 점심이 맛있었어요.,haeyo,,"*The lunch I eat yesterday was delicious. (present relative clause 먹는 with past anchor; should be 먹은)"
 39,grammar_only,seoyeon,저는 5년 전에 한국어를 배우고 있어요.,haeyo,,"*I'm learning Korean since 5 years ago. (present progressive with past anchor; should be 배운 지 5년 됐어요)"
 40,grammar_only,seoyeon,선배님 제가 이 파일 보내줄 수 있을게요.,haeyo,,"*I will be able to send this file. (수 있을게요 ungrammatical; should be 보내드릴게요 or 보낼 수 있어요)"
+41,name_ssi_to_senior,seoyeon,서연씨 어디 가요?,haeyo,name_ssi_to_senior,"First name + 씨 to senior (should use 선배님 or 선배)"
+42,name_ssi_to_senior,seoyeon,서연씨 지금 바빠요?,haeyo,name_ssi_to_senior,"First name + 씨; too familiar for a senior (should use 선배님)"
+43,name_ssi_to_senior,seoyeon,서연씨 감사해요!,haeyo,name_ssi_to_senior,"First name + 씨 without senior title (should use 선배님 감사해요)"
+44,name_ssi_to_senior,seoyeon,박서연씨 이거 어떻게 해요?,haeyo,name_ssi_to_senior,"Full name + 씨 to senior (should address as 선배님)"
