@@ -88,6 +88,10 @@ def _get_voice_input(char_name: str) -> tuple[str, dict | None]:
 
     result = record_and_transcribe(language="ko")
 
+    if result.quality_warning:
+        print(f"[Voice] {result.quality_warning} Please try again.\n")
+        return "", None
+
     if result.low_confidence:
         prompt = random.choice(_REPEAT_PROMPTS)
         print(f"{char_name}: {prompt}\n")
