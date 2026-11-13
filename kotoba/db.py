@@ -41,6 +41,10 @@ def _migrate() -> None:
         "stt_corrected": "INTEGER DEFAULT 0",
         "stt_avg_logprob": "REAL",
         "stt_no_speech_prob": "REAL",
+        "t_stt_ms": "INTEGER",
+        "t_judge_ms": "INTEGER",
+        "t_reply_ms": "INTEGER",
+        "t_tts_first_ms": "INTEGER",
     }
     for col, typedef in new_cols.items():
         if col not in existing:
@@ -187,16 +191,22 @@ def log_turn(
     stt_corrected: bool = False,
     stt_avg_logprob: float | None = None,
     stt_no_speech_prob: float | None = None,
+    t_stt_ms: int = 0,
+    t_judge_ms: int = 0,
+    t_reply_ms: int = 0,
+    t_tts_first_ms: int = 0,
 ) -> int:
     conn = _connect()
     cur = conn.execute(
         "INSERT INTO turns "
         "(session_id, user_text_raw, user_register, reply_text, judge_json, "
-        "stt_transcript, stt_corrected, stt_avg_logprob, stt_no_speech_prob) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "stt_transcript, stt_corrected, stt_avg_logprob, stt_no_speech_prob, "
+        "t_stt_ms, t_judge_ms, t_reply_ms, t_tts_first_ms) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (session_id, user_text_raw, user_register, reply_text,
          json.dumps(judge_json),
-         stt_transcript, int(stt_corrected), stt_avg_logprob, stt_no_speech_prob),
+         stt_transcript, int(stt_corrected), stt_avg_logprob, stt_no_speech_prob,
+         t_stt_ms, t_judge_ms, t_reply_ms, t_tts_first_ms),
     )
     conn.commit()
     turn_id = cur.lastrowid

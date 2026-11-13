@@ -12,7 +12,7 @@ import logging
 import time
 import urllib.error
 import urllib.request
-from typing import Type, TypeVar
+from typing import Iterator, Type, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -59,6 +59,42 @@ def chat(
     reply = data["message"]["content"]
     log.debug("chat  %.2fs  model=%s  think=%s  chars=%d", secs, model, think, len(reply))
     return reply
+
+
+def chat_stream(
+    messages: list[dict],
+    *,
+    temperature: float = 0.7,
+    think: bool = False,
+    model: str = MODEL,
+) -> Iterator[str]:
+    """Yield text tokens as they arrive. think=False by default (Qwen3)."""
+    payload = {
+        "model": model,
+        "messages": messages,
+        "stream": True,
+        "think": think,
+        "options": {"temperature": temperature},
+    }
+    body = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        _CHAT_URL,
+        data=body,
+        headers={"Content-Type": "application/json"},
+    )
+    t0 = time.perf_counter()
+    try:
+        with urllib.request.urlopen(req) as resp:
+            for line in resp:
+                chunk = json.loads(line)
+                if chunk.get("done"):
+                    log.debug("chat_stream done  %.2fs  model=%s", time.perf_counter() - t0, model)
+                    return
+                token = chunk.get("message", {}).get("content", "")
+                if token:
+                    yield token
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Ollama unreachable at {_CHAT_URL}: {exc}") from exc
 
 
 def _resolve_refs(schema: dict) -> dict:

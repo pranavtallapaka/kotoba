@@ -87,7 +87,7 @@ def _behavior_note(state: dict, repeat_slip: bool = False) -> str:
     return " ".join(parts)
 
 
-def build_prompt(char_id: str, user_text: str = "", repeat_slip: bool = False) -> str:
+def build_prompt(char_id: str, user_text: str = "", repeat_slip: bool = False, subtitle: bool = False) -> str:
     char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
     state = get_state(char_id)
     all_mems = get_memories(char_id)
@@ -116,6 +116,11 @@ def build_prompt(char_id: str, user_text: str = "", repeat_slip: bool = False) -
     result = template
     for key, val in fills.items():
         result = result.replace("{" + key + "}", val)
+    if subtitle:
+        result += (
+            "\n\nAfter your Korean reply, on a new line write: "
+            "EN: <natural English translation of your reply>"
+        )
     return result
 
 
@@ -131,12 +136,7 @@ def reply(
     subtitle=True: returns (korean, english) in one LLM call — no extra latency.
     subtitle=False: returns the Korean string (default, backward-compatible).
     """
-    system_prompt = build_prompt(char_id, user_text, repeat_slip=repeat_slip)
-    if subtitle:
-        system_prompt += (
-            "\n\nAfter your Korean reply, on a new line write: "
-            "EN: <natural English translation of your reply>"
-        )
+    system_prompt = build_prompt(char_id, user_text, repeat_slip=repeat_slip, subtitle=subtitle)
     messages = (
         [{"role": "system", "content": system_prompt}]
         + history
@@ -149,3 +149,19 @@ def reply(
             return korean.strip(), english.strip()
         return raw.strip(), ""
     return raw
+
+
+def reply_stream(
+    history: list[dict],
+    user_text: str,
+    char_id: str,
+    system_prompt: str,
+) -> "Iterator[str]":
+    """Yield reply tokens one by one. Caller must pre-build system_prompt."""
+    from typing import Iterator
+    messages = (
+        [{"role": "system", "content": system_prompt}]
+        + history
+        + [{"role": "user", "content": user_text}]
+    )
+    return llm.chat_stream(messages, temperature=0.8)

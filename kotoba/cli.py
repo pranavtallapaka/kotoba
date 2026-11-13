@@ -9,8 +9,13 @@ Commands during a session:
   /why             last judge reason and state deltas
   /quit            end the session
 """
+import os
+import queue
 import random
+import re
 import sys
+import threading
+import time
 from pathlib import Path
 
 import yaml
@@ -97,6 +102,7 @@ def _get_voice_input(char_name: str) -> tuple[str, dict | None]:
             return result.text, {
                 "transcript": result.text, "corrected": False,
                 "avg_logprob": result.avg_logprob, "no_speech_prob": result.no_speech_prob,
+                "t_stt_ms": result.t_stt_ms,
             }
         if raw == "r":
             return _get_voice_input(char_name)
@@ -107,6 +113,7 @@ def _get_voice_input(char_name: str) -> tuple[str, dict | None]:
             return corrected, {
                 "transcript": result.text, "corrected": True,
                 "avg_logprob": result.avg_logprob, "no_speech_prob": result.no_speech_prob,
+                "t_stt_ms": result.t_stt_ms,
             }
 
 
@@ -122,52 +129,189 @@ def _do_turn(
     stt_meta: dict | None,
     show_subtitle: bool,
     voice_id: str = "",
+    debug: bool = False,
 ) -> tuple[judge_module.JudgeResult, list[dict], str]:
-    """Run judge → state → reply → log for one accepted turn. Returns (result, events, reply)."""
+    """Parallel judge + streaming reply/TTS. Returns (result, events, reply_text)."""
+    t0 = time.perf_counter()
     state = get_state(char_id)
-    result = judge_module.judge(text=user_input, character=char, state=state, history=history)
-
-    events = state_module.apply_turn(result, char_id, player)
-    session_memories.extend(result.new_memories)
-
-    slip_msg = state_module.explain_slip(result, user_input)
-    if slip_msg:
-        session_slips.append(slip_msg)
-
-    repeat_slip = bool(slip_msg) and len(session_slips) >= 2
-
     char_name = char.get("name", char_id)
-    if show_subtitle:
-        reply_text, subtitle = character.reply(history, user_input, char_id, subtitle=True, repeat_slip=repeat_slip)
+
+    # repeat_slip: based on slips already accumulated before this turn
+    repeat_slip = len(session_slips) >= 1
+
+    # Pre-build character prompt now, before judge may update state
+    system_prompt = character.build_prompt(char_id, user_input, repeat_slip=repeat_slip)
+
+    # --- Thread A: judge (runs in parallel with reply) ---
+    _judge_result: list = [None]
+    _judge_ms: list = [0]
+    _events: list = []
+    _reply_done = threading.Event()
+
+    def _run_judge():
+        tj = time.perf_counter()
+        _judge_result[0] = judge_module.judge(
+            text=user_input, character=char, state=state, history=history
+        )
+        _judge_ms[0] = int((time.perf_counter() - tj) * 1000)
+        # Apply state changes immediately (don't wait for reply)
+        _events[:] = state_module.apply_turn(_judge_result[0], char_id, player)
+        # Wait for reply text to finish printing before showing slip
+        _reply_done.wait()
+        session_memories.extend(_judge_result[0].new_memories)
+        slip_msg = state_module.explain_slip(_judge_result[0], user_input)
+        if slip_msg:
+            session_slips.append(slip_msg)
+            print(f"[Slip] {slip_msg}\n", flush=True)
+
+    judge_thread = threading.Thread(target=_run_judge, daemon=True)
+    judge_thread.start()
+
+    # --- Reply + TTS ---
+    _reply_parts: list[str] = []
+    _reply_ms: list[int] = [0]
+    _llm_first_ms: list[int] = [0]   # time until first sentence queued for TTS
+    _tts_first_ms: list[int] = [0]   # time until first audio plays
+
+    use_streaming = bool(voice_id) and not show_subtitle
+
+    if not use_streaming:
+        # Non-streaming path (subtitle mode, text mode, batch mode)
+        if show_subtitle:
+            prompt_to_use = character.build_prompt(char_id, user_input, repeat_slip=repeat_slip, subtitle=True)
+        else:
+            prompt_to_use = system_prompt  # already built above
+        t_r = time.perf_counter()
+        raw = llm.chat(
+            [{"role": "system", "content": prompt_to_use}]
+            + history
+            + [{"role": "user", "content": user_input}],
+            temperature=0.8,
+        )
+        _reply_ms[0] = int((time.perf_counter() - t_r) * 1000)
+
+        if show_subtitle and "\nEN: " in raw:
+            reply_text, subtitle_text = raw.split("\nEN: ", 1)
+            reply_text = reply_text.strip()
+            subtitle_text = subtitle_text.strip()
+        else:
+            reply_text = raw.strip()
+            subtitle_text = ""
+
+        _reply_parts.append(reply_text)
         print(f"{char_name}: {reply_text}")
-        if subtitle:
-            print(f"       ({subtitle})")
+        if subtitle_text:
+            print(f"       ({subtitle_text})")
         print()
+
+        _reply_done.set()
+
+        if voice_id:
+            wav = tts.synthesize(reply_text, voice_id)
+            if wav:
+                _tts_first_ms[0] = int((time.perf_counter() - t0) * 1000)
+                try:
+                    tts.play(wav)
+                finally:
+                    os.unlink(wav)
+
     else:
-        reply_text = character.reply(history, user_input, char_id, repeat_slip=repeat_slip)
-        print(f"{char_name}: {reply_text}\n")
+        # Streaming path: LLM tokens → sentence queue → TTS consumer
+        sentence_q: queue.SimpleQueue = queue.SimpleQueue()
 
-    tts.speak(reply_text, voice_id)
+        def _producer():
+            t_start = time.perf_counter()
+            korean_buf = ""
+            first_sent = False
 
-    if slip_msg:
-        print(f"[Slip] {slip_msg}\n")
+            print(f"{char_name}: ", end="", flush=True)
+            for token in character.reply_stream(history, user_input, char_id, system_prompt):
+                sys.stdout.write(token)
+                sys.stdout.flush()
+                _reply_parts.append(token)
+                korean_buf += token
+                # Flush complete sentences (punc followed by whitespace)
+                while True:
+                    m = re.search(r'(.*?[.?!。！？])\s+', korean_buf)
+                    if m:
+                        sent = m.group(1).strip()
+                        if sent:
+                            if not first_sent:
+                                _llm_first_ms[0] = int((time.perf_counter() - t0) * 1000)
+                                first_sent = True
+                            sentence_q.put(sent)
+                        korean_buf = korean_buf[m.end():]
+                    else:
+                        break
+            # Flush remainder
+            if korean_buf.strip():
+                if not first_sent:
+                    _llm_first_ms[0] = int((time.perf_counter() - t0) * 1000)
+                sentence_q.put(korean_buf.strip())
+            print()
+            _reply_ms[0] = int((time.perf_counter() - t_start) * 1000)
+            sentence_q.put(None)  # sentinel
 
+        def _consumer():
+            first = True
+            while True:
+                sent = sentence_q.get()
+                if sent is None:
+                    break
+                wav = tts.synthesize(sent, voice_id)
+                if wav:
+                    if first:
+                        _tts_first_ms[0] = int((time.perf_counter() - t0) * 1000)
+                        first = False
+                    try:
+                        tts.play(wav)
+                    finally:
+                        os.unlink(wav)
+
+        t_prod = threading.Thread(target=_producer)
+        t_cons = threading.Thread(target=_consumer)
+        t_prod.start()
+        t_cons.start()
+        t_prod.join()
+        _reply_done.set()   # reply text done; judge can now print slip
+        t_cons.join()       # wait for all audio to finish
+
+    judge_thread.join()
+
+    reply_text = "".join(_reply_parts).strip()
+
+    # --- Timing line ---
+    t_stt_ms = (stt_meta.get("t_stt_ms", 0) or 0) if stt_meta else 0
+    if debug:
+        print(
+            f"[timing] stt={t_stt_ms/1000:.2f}s  judge={_judge_ms[0]/1000:.2f}s  "
+            f"reply={_reply_ms[0]/1000:.2f}s  llm1={_llm_first_ms[0]/1000:.2f}s  "
+            f"tts1={_tts_first_ms[0]/1000:.2f}s\n"
+        )
+
+    # --- Log turn ---
     history.append({"role": "user", "content": user_input})
     history.append({"role": "assistant", "content": reply_text})
 
     log_turn(
         session_id=session_id,
         user_text_raw=user_input,
-        user_register=result.register_used,
+        user_register=_judge_result[0].register_used,
         reply_text=reply_text,
-        judge_json=result.model_dump(exclude={"validator_register", "validator_confidence", "validator_override"}),
+        judge_json=_judge_result[0].model_dump(
+            exclude={"validator_register", "validator_confidence", "validator_override"}
+        ),
         stt_transcript=stt_meta["transcript"] if stt_meta else None,
         stt_corrected=stt_meta["corrected"] if stt_meta else False,
         stt_avg_logprob=stt_meta["avg_logprob"] if stt_meta else None,
         stt_no_speech_prob=stt_meta["no_speech_prob"] if stt_meta else None,
+        t_stt_ms=t_stt_ms,
+        t_judge_ms=_judge_ms[0],
+        t_reply_ms=_reply_ms[0],
+        t_tts_first_ms=_tts_first_ms[0],
     )
 
-    return result, events, reply_text
+    return _judge_result[0], _events, reply_text
 
 
 def _run_batch(
@@ -207,6 +351,7 @@ def _run_batch(
         stt_meta = {
             "transcript": stt.text, "corrected": False,
             "avg_logprob": stt.avg_logprob, "no_speech_prob": stt.no_speech_prob,
+            "t_stt_ms": stt.t_stt_ms,
         }
 
         state_before = get_state(char_id)
@@ -242,7 +387,7 @@ def _run_batch(
     print("\n[Batch session ended]")
 
 
-def run(char_id: str, voice: bool = False, audio_dir: Path | None = None) -> None:
+def run(char_id: str, voice: bool = False, audio_dir: Path | None = None, debug: bool = False) -> None:
     init_db()
     session_id = start_session(char_id)
 
@@ -371,6 +516,7 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None) -> Non
             stt_meta=stt_meta,
             show_subtitle=show_subtitle,
             voice_id=char_voice_id if voice else "",
+            debug=debug,
         )
         last_reply = char_reply
         last_judge = result
@@ -391,8 +537,6 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None) -> Non
 
 if __name__ == "__main__":
     import argparse
-    import os
-    import sys
 
     parser = argparse.ArgumentParser(description="kotoba conversation CLI")
     parser.add_argument("char_id", help="character id (e.g. seoyeon)")
@@ -407,6 +551,7 @@ if __name__ == "__main__":
         metavar="PATH",
         help="SQLite database path (default: kotoba.db)",
     )
+    parser.add_argument("--debug", action="store_true", help="print per-turn timing line")
     args = parser.parse_args()
 
     _prod_db = (ROOT / "kotoba.db").resolve()
@@ -426,4 +571,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     audio_dir = Path(args.audio_dir) if args.audio_dir else None
-    run(args.char_id, voice=args.voice or audio_dir is not None, audio_dir=audio_dir)
+    run(args.char_id, voice=args.voice or audio_dir is not None, audio_dir=audio_dir, debug=args.debug)

@@ -62,6 +62,10 @@ CREATE TABLE IF NOT EXISTS turns (
     stt_corrected    INTEGER  DEFAULT 0,   -- 1 if user typed 'e' and edited
     stt_avg_logprob  REAL,
     stt_no_speech_prob REAL,
+    t_stt_ms         INTEGER,          -- STT transcription time
+    t_judge_ms       INTEGER,          -- judge LLM call time
+    t_reply_ms       INTEGER,          -- time to receive all LLM reply tokens
+    t_tts_first_ms   INTEGER,          -- time from turn-start until first audio plays
     created_at       TEXT     DEFAULT (datetime('now')),
     FOREIGN KEY (session_id) REFERENCES sessions(id)
 );

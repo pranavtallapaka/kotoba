@@ -1,51 +1,71 @@
 """Text-to-speech output.
 
-speak(text, voice_id, slow=False) -> None
+speak(text, voice_id, slow=False) -> None          # synthesise + play (blocking)
+synthesize(text, voice_id, slow=False) -> str|None # write temp WAV, return path
+play(wav_path) -> None                             # afplay a WAV file
 
-Engine: MeloTTS (Korean neural TTS). voice_id must be a MeloTTS language code
-("KR" for Korean). slow=True reduces synthesis speed by 30%.
-Playback via afplay (macOS); audio is synthesised to a temp WAV then played.
+Engine: MeloTTS (Korean neural TTS). voice_id = "KR".
+Device: MPS (Apple Silicon Metal) if available, else CPU.
 """
+import os
 import subprocess
 import tempfile
-import os
+import warnings
 
 _NORMAL_SPEED = 1.0
 _SLOW_SPEED = 0.7
 
-_tts_instance: object = None   # lazy-loaded on first call
+_tts_instance = None
 
 
 def _get_tts(language: str):
-    """Return a cached MeloTTS instance for the given language."""
     global _tts_instance
     if _tts_instance is None:
-        from melo.api import TTS  # deferred import — slow on first call
-        import warnings
+        from melo.api import TTS
+        try:
+            import torch
+            dev = "mps" if torch.backends.mps.is_available() else "cpu"
+        except Exception:
+            dev = "cpu"
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            _tts_instance = TTS(language=language, device="cpu")
+            _tts_instance = TTS(language=language, device=dev)
     return _tts_instance
 
 
-def speak(text: str, voice_id: str, slow: bool = False) -> None:
-    """Synthesise text with MeloTTS and play it. Blocks until audio finishes.
-    No-op if voice_id is empty or text is empty."""
-    if not voice_id or not text:
-        return
+def synthesize(text: str, voice_id: str, slow: bool = False) -> str | None:
+    """Synthesise text to a temp WAV. Returns path; caller must delete it. None on empty input."""
+    if not voice_id or not text or not text.strip():
+        return None
     tts = _get_tts(voice_id)
     try:
         speaker_id = tts.hps.data.spk2id[voice_id]
     except (KeyError, TypeError):
-        return
+        return None
     speed = _SLOW_SPEED if slow else _NORMAL_SPEED
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
         out_path = f.name
     try:
-        import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             tts.tts_to_file(text, speaker_id, out_path, speed=speed)
-        subprocess.run(["afplay", out_path], check=False)
-    finally:
-        os.unlink(out_path)
+        return out_path
+    except Exception:
+        if os.path.exists(out_path):
+            os.unlink(out_path)
+        return None
+
+
+def play(wav_path: str) -> None:
+    """Play a WAV file via afplay (macOS). Blocking."""
+    subprocess.run(["afplay", wav_path], check=False)
+
+
+def speak(text: str, voice_id: str, slow: bool = False) -> None:
+    """Synthesise and play. Blocking. No-op if voice_id or text is empty."""
+    path = synthesize(text, voice_id, slow)
+    if path:
+        try:
+            play(path)
+        finally:
+            os.unlink(path)
