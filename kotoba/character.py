@@ -88,7 +88,16 @@ def _behavior_note(state: dict, repeat_slip: bool = False) -> str:
     return " ".join(parts)
 
 
-def build_prompt(char_id: str, user_text: str = "", repeat_slip: bool = False, subtitle: bool = False, voice: bool = False) -> str:
+def build_prompt(
+    char_id: str,
+    user_text: str = "",
+    repeat_slip: bool = False,
+    subtitle: bool = False,
+    voice: bool = False,
+    beat: dict | None = None,
+    beat_variant: str | None = None,
+    fail_note: str | None = None,
+) -> str:
     char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
     state = get_state(char_id)
     all_mems = get_memories(char_id)
@@ -117,6 +126,11 @@ def build_prompt(char_id: str, user_text: str = "", repeat_slip: bool = False, s
     result = template
     for key, val in fills.items():
         result = result.replace("{" + key + "}", val)
+    if beat:
+        from kotoba import beats as beats_mod
+        result += "\n\n" + beats_mod.format_beat_for_character(
+            beat, variant=beat_variant, fail_note=fail_note
+        )
     if voice:
         result += "\n\nUse at most one emoji, placed at the end of your reply, never in the middle of a sentence."
     if subtitle:

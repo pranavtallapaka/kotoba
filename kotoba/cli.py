@@ -1,4 +1,4 @@
-"""CLI entry point: python -m kotoba.cli <char_id> [--voice]
+"""CLI entry point: python -m kotoba.cli <char_id> [--episode <id>] [--voice]
 
 Commands during a session:
   /en              English translation of her last line
@@ -7,6 +7,10 @@ Commands during a session:
   /slow            replay her last line slower
   /state           her current state
   /why             last judge reason and state deltas
+  /beat            current beat id, goal, and turn count (episode mode)
+  /next            skip to next beat (episode mode)
+  /goto <beat_id>  jump to a specific beat (episode mode)
+  /set <var> <val> set a state variable, e.g. /set closeness 70
   /quit            end the session
 """
 import os
@@ -20,6 +24,7 @@ from pathlib import Path
 
 import yaml
 
+from kotoba import beats as beats_mod
 from kotoba import character, judge as judge_module, llm, stt_config, state as state_module, summaries, tts
 from kotoba.db import (
     end_session,
@@ -28,6 +33,7 @@ from kotoba.db import (
     load_player,
     log_turn,
     start_session,
+    update_state,
 )
 
 ROOT = Path(__file__).parent.parent
@@ -135,6 +141,9 @@ def _do_turn(
     voice_id: str = "",
     debug: bool = False,
     timing_out: list | None = None,
+    beat: dict | None = None,
+    beat_variant: str | None = None,
+    fail_note: str | None = None,
 ) -> tuple[judge_module.JudgeResult, list[dict], str]:
     """Parallel judge + streaming reply/TTS. Returns (result, events, reply_text)."""
     t0 = time.perf_counter()
@@ -145,7 +154,10 @@ def _do_turn(
     repeat_slip = len(session_slips) >= 1
 
     # Pre-build character prompt now, before judge may update state
-    system_prompt = character.build_prompt(char_id, user_input, repeat_slip=repeat_slip, voice=bool(voice_id))
+    system_prompt = character.build_prompt(
+        char_id, user_input, repeat_slip=repeat_slip, voice=bool(voice_id),
+        beat=beat, beat_variant=beat_variant, fail_note=fail_note,
+    )
 
     # --- Thread A: judge — starts only after reply's first sentence is queued for TTS ---
     _judge_result: list = [None]
@@ -158,7 +170,7 @@ def _do_turn(
         _first_sentence_sent.wait()  # don't compete with the reply LLM call at t=0
         tj = time.perf_counter()
         _judge_result[0] = judge_module.judge(
-            text=user_input, character=char, state=state, history=history
+            text=user_input, character=char, state=state, history=history, beat=beat
         )
         _judge_ms[0] = int((time.perf_counter() - tj) * 1000)
         _events[:] = state_module.apply_turn(_judge_result[0], char_id, player)
@@ -183,7 +195,10 @@ def _do_turn(
     if not use_streaming:
         # Non-streaming path: text mode (no voice), batch mode
         if show_subtitle:
-            prompt_to_use = character.build_prompt(char_id, user_input, repeat_slip=repeat_slip, subtitle=True, voice=bool(voice_id))
+            prompt_to_use = character.build_prompt(
+                char_id, user_input, repeat_slip=repeat_slip, subtitle=True, voice=bool(voice_id),
+                beat=beat, beat_variant=beat_variant, fail_note=fail_note,
+            )
         else:
             prompt_to_use = system_prompt
         t_r = time.perf_counter()
@@ -497,9 +512,15 @@ def _run_bench(char_id: str, audio_dir: Path, voice_id: str) -> None:
     print("".join(parts))
 
 
-def run(char_id: str, voice: bool = False, audio_dir: Path | None = None, debug: bool = False) -> None:
+def run(
+    char_id: str,
+    voice: bool = False,
+    audio_dir: Path | None = None,
+    debug: bool = False,
+    episode_id: str | None = None,
+) -> None:
     init_db()
-    session_id = start_session(char_id)
+    session_id = start_session(char_id, episode_id=episode_id)
 
     char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
     char_name = char.get("name", char_id)
@@ -507,6 +528,17 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None, debug:
     support_ko = player.get("support_level_ko", 2)
 
     initial_state = get_state(char_id)
+
+    # Episode setup
+    episode: dict | None = None
+    ep_progress: dict | None = None
+    beat_turns: int = 0
+    ep_fail_note: str | None = None
+    if episode_id:
+        episode = beats_mod.load_episode(episode_id)
+        ep_progress = beats_mod.get_or_init_progress(episode_id, episode)
+        beat_turns = ep_progress.get("turns_on_beat", 0)
+        print(f"[에피소드: {episode.get('title', episode_id)}]")
 
     if audio_dir is not None:
         _run_batch(char_id, audio_dir, session_id, char, player, initial_state)
@@ -657,6 +689,91 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None, debug:
                 print("[No previous reply]\n")
             continue
 
+        if user_input == "/beat":
+            if not episode:
+                print("[No episode active]\n")
+            elif ep_progress and ep_progress.get("status") == "complete":
+                print("[에피소드 완료]\n")
+            else:
+                beat = beats_mod.current_beat(ep_progress, episode) if ep_progress else None
+                if beat:
+                    print(f"[Beat] {beat['id']}: {beat['goal'].strip()}")
+                    if beat.get("pass_if"):
+                        print(f"  pass_if: {beat['pass_if']}")
+                    print(f"  turns on this beat: {beat_turns}/{beats_mod.DEFAULT_MAX_TURNS}\n")
+                else:
+                    print("[No active beat]\n")
+            continue
+
+        if user_input == "/next":
+            if not episode or not ep_progress:
+                print("[No episode active]\n")
+            elif ep_progress.get("status") == "complete":
+                print("[에피소드 이미 완료]\n")
+            else:
+                beat = beats_mod.current_beat(ep_progress, episode)
+                ep_progress, _ = beats_mod.advance(
+                    episode_id, episode, ep_progress, get_state(char_id), beat_passed=None
+                )
+                beat_turns = 0
+                ep_fail_note = None
+                new_beat = beats_mod.current_beat(ep_progress, episode)
+                if new_beat:
+                    print(f"[→ beat: {new_beat['id']}] {new_beat['goal'].strip()}\n")
+                else:
+                    print("[에피소드 완료]\n")
+            continue
+
+        if user_input.startswith("/goto "):
+            target_id = user_input[6:].strip()
+            if not episode or not ep_progress:
+                print("[No episode active]\n")
+            else:
+                try:
+                    ep_progress = beats_mod.goto_beat(
+                        episode_id, episode, target_id, get_state(char_id)
+                    )
+                    beat_turns = 0
+                    ep_fail_note = None
+                    new_beat = beats_mod.current_beat(ep_progress, episode)
+                    if new_beat:
+                        print(f"[→ beat: {new_beat['id']}] {new_beat['goal'].strip()}\n")
+                except ValueError as e:
+                    print(f"[Error] {e}\n")
+            continue
+
+        if user_input.startswith("/set "):
+            parts = user_input[5:].split()
+            if len(parts) != 2:
+                print("[Usage: /set <variable> <value>  — e.g. /set closeness 70]\n")
+                continue
+            var, raw_val = parts
+            allowed_str = {"offense"}
+            allowed_int = {"closeness", "respect"}
+            if var in allowed_int:
+                try:
+                    update_state(char_id, **{var: int(raw_val)})
+                    print(f"[Set] {var} = {raw_val}\n")
+                except ValueError:
+                    print(f"[Error] {var} expects an integer\n")
+            elif var in allowed_str:
+                update_state(char_id, **{var: raw_val})
+                print(f"[Set] {var} = {raw_val}\n")
+            else:
+                print(f"[Error] unknown variable '{var}' — use closeness, respect, or offense\n")
+            continue
+
+        # --- Resolve current beat before the turn ---
+        beat: dict | None = None
+        beat_variant: str | None = None
+        if episode and ep_progress:
+            beat = beats_mod.current_beat(ep_progress, episode)
+            beat_variant = ep_progress.get("variant")
+            if beat and support_ko <= 1:
+                frames = beats_mod.format_beginner_frames(beat, support_ko)
+                if frames:
+                    print(frames)
+
         result, events, char_reply = _do_turn(
             user_input=user_input,
             char_id=char_id,
@@ -670,10 +787,35 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None, debug:
             show_subtitle=show_subtitle,
             voice_id=char_voice_id if voice else "",
             debug=debug,
+            beat=beat,
+            beat_variant=beat_variant,
+            fail_note=ep_fail_note,
         )
+        ep_fail_note = None  # consumed this turn
         last_reply = char_reply
         last_judge = result
         last_events = events
+
+        # --- Beat runner: advance if pass_if met or turn cap reached ---
+        if episode and ep_progress and beat:
+            beat_turns += 1
+            if beats_mod.should_advance(beat_turns, result.beat_passed):
+                ep_progress, on_fail_note = beats_mod.advance(
+                    episode_id, episode, ep_progress, get_state(char_id), result.beat_passed
+                )
+                # Apply state deltas from on_fail (e.g. "respect -3")
+                if on_fail_note:
+                    deltas = beats_mod.parse_on_fail_deltas(on_fail_note)
+                    if deltas:
+                        update_state(char_id, **deltas)
+                ep_fail_note = on_fail_note
+                beat_turns = 0
+
+                new_beat = beats_mod.current_beat(ep_progress, episode)
+                if new_beat:
+                    print(f"\n[→ beat: {new_beat['id']}] {new_beat['goal'].strip()}\n")
+                else:
+                    print("\n[에피소드 완료! 계속 대화하거나 /quit으로 종료하세요.]\n")
 
     if quit_requested and history:
         print("[Generating session summary…]", flush=True)
@@ -693,6 +835,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="kotoba conversation CLI")
     parser.add_argument("char_id", help="character id (e.g. seoyeon)")
+    parser.add_argument("--episode", metavar="ID", help="episode id to play (e.g. test_dummy)")
     parser.add_argument("--voice", action="store_true", help="push-to-talk voice input")
     parser.add_argument(
         "--audio-dir",
@@ -749,4 +892,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     audio_dir = Path(args.audio_dir) if args.audio_dir else None
-    run(args.char_id, voice=args.voice or audio_dir is not None, audio_dir=audio_dir, debug=args.debug)
+    run(
+        args.char_id,
+        voice=args.voice or audio_dir is not None,
+        audio_dir=audio_dir,
+        debug=args.debug,
+        episode_id=args.episode,
+    )

@@ -1,0 +1,31 @@
+id: test_dummy
+title: 더미 테스트 에피소드 (Dummy Test Episode)
+characters: [seoyeon]
+
+beats:
+  - id: greet
+    goal: >
+      Seo-yeon runs into you in the hallway and asks how you're settling in
+      at the company. Reply warmly.
+    beginner_frames:
+      - korean: 잘 지내고 있어요, 선배님!
+        gloss: I'm doing well, 선배님!
+      - korean: 아직 적응 중이에요.
+        gloss: I'm still getting used to it.
+
+  - id: introduce
+    goal: >
+      Seo-yeon asks where you're from. Tell her your hometown or country.
+    pass_if: player mentions their hometown, city, or country of origin
+    on_fail: Seo-yeon changes the subject awkwardly; closeness -1
+    beginner_frames:
+      - korean: 저는 미국에서 왔어요.
+        gloss: I'm from the United States.
+      - korean: 캐나다에서 왔어요, 선배님.
+        gloss: I'm from Canada, 선배님.
+
+  - id: farewell
+    goal: >
+      Seo-yeon wraps up the conversation and says goodbye for the day.
+      She says she has work to get back to.
+    variants: [warm, cool]

@@ -35,8 +35,8 @@ def _connect() -> sqlite3.Connection:
 def _migrate() -> None:
     """Add columns introduced after initial schema — idempotent."""
     conn = _connect()
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(turns)")}
-    new_cols = {
+    existing_turns = {row[1] for row in conn.execute("PRAGMA table_info(turns)")}
+    new_turn_cols = {
         "stt_transcript": "TEXT",
         "stt_corrected": "INTEGER DEFAULT 0",
         "stt_avg_logprob": "REAL",
@@ -46,9 +46,14 @@ def _migrate() -> None:
         "t_reply_ms": "INTEGER",
         "t_tts_first_ms": "INTEGER",
     }
-    for col, typedef in new_cols.items():
-        if col not in existing:
+    for col, typedef in new_turn_cols.items():
+        if col not in existing_turns:
             conn.execute(f"ALTER TABLE turns ADD COLUMN {col} {typedef}")
+
+    existing_ep = {row[1] for row in conn.execute("PRAGMA table_info(episode_progress)")}
+    if "turns_on_beat" not in existing_ep:
+        conn.execute("ALTER TABLE episode_progress ADD COLUMN turns_on_beat INTEGER DEFAULT 0")
+
     conn.commit()
     conn.close()
 
@@ -257,6 +262,41 @@ def get_memories(char_id: str) -> list[dict]:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Episode progress
+# ---------------------------------------------------------------------------
+
+def get_progress(episode_id: str) -> dict | None:
+    conn = _connect()
+    row = conn.execute(
+        "SELECT * FROM episode_progress WHERE episode_id = ?", (episode_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def set_progress(
+    episode_id: str,
+    beat_id: str | None,
+    variant: str | None = None,
+    turns_on_beat: int = 0,
+    status: str = "active",
+) -> None:
+    conn = _connect()
+    conn.execute(
+        "INSERT INTO episode_progress "
+        "(episode_id, current_beat, variant, turns_on_beat, status) "
+        "VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT(episode_id) DO UPDATE SET "
+        "current_beat=excluded.current_beat, variant=excluded.variant, "
+        "turns_on_beat=excluded.turns_on_beat, status=excluded.status, "
+        "updated_at=datetime('now')",
+        (episode_id, beat_id, variant, turns_on_beat, status),
+    )
+    conn.commit()
+    conn.close()
 
 
 # ---------------------------------------------------------------------------
