@@ -97,6 +97,7 @@ def build_prompt(
     beat: dict | None = None,
     beat_variant: str | None = None,
     fail_note: str | None = None,
+    romanize: bool = False,
 ) -> str:
     char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
     state = get_state(char_id)
@@ -133,6 +134,12 @@ def build_prompt(
         )
     if voice:
         result += "\n\nUse at most one emoji, placed at the end of your reply, never in the middle of a sentence."
+    if romanize:
+        result += (
+            "\n\nAfter your Korean reply, on a new line write: "
+            "ROM: <Revised Romanization of Korean for your reply, syllable-by-syllable with hyphens>"
+            "\n(This ROM: line is a reading aid for the learner — not part of your in-character speech.)"
+        )
     if subtitle:
         result += (
             "\n\nAfter your Korean reply, on a new line write: "

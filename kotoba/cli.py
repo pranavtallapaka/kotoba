@@ -144,6 +144,7 @@ def _do_turn(
     beat: dict | None = None,
     beat_variant: str | None = None,
     fail_note: str | None = None,
+    romanize: bool = False,
 ) -> tuple[judge_module.JudgeResult, list[dict], str]:
     """Parallel judge + streaming reply/TTS. Returns (result, events, reply_text)."""
     t0 = time.perf_counter()
@@ -157,6 +158,7 @@ def _do_turn(
     system_prompt = character.build_prompt(
         char_id, user_input, repeat_slip=repeat_slip, voice=bool(voice_id),
         beat=beat, beat_variant=beat_variant, fail_note=fail_note,
+        romanize=romanize,
     )
 
     # --- Thread A: judge — starts only after reply's first sentence is queued for TTS ---
@@ -198,6 +200,7 @@ def _do_turn(
             prompt_to_use = character.build_prompt(
                 char_id, user_input, repeat_slip=repeat_slip, subtitle=True, voice=bool(voice_id),
                 beat=beat, beat_variant=beat_variant, fail_note=fail_note,
+                romanize=romanize,
             )
         else:
             prompt_to_use = system_prompt
@@ -210,6 +213,11 @@ def _do_turn(
         )
         _reply_ms[0] = int((time.perf_counter() - t_r) * 1000)
 
+        rom_text = ""
+        if romanize and "\nROM: " in raw:
+            raw, rom_part = raw.split("\nROM: ", 1)
+            rom_text = rom_part.split("\n")[0].strip()
+
         if show_subtitle and "\nEN: " in raw:
             reply_text, subtitle_text = raw.split("\nEN: ", 1)
             reply_text = reply_text.strip()
@@ -220,6 +228,8 @@ def _do_turn(
 
         _reply_parts.append(reply_text)
         print(f"{char_name}: {reply_text}")
+        if rom_text:
+            print(f"       {rom_text}")
         if subtitle_text:
             print(f"       ({subtitle_text})")
         print()
@@ -597,10 +607,13 @@ def run(
     session_memories: list[str] = []
     quit_requested = False
     show_subtitle = voice and support_ko <= 2
+    show_romanize = not voice and support_ko <= 2
 
     mode_note = " | --voice active" if voice else ""
     if show_subtitle:
         mode_note += " | subtitles on"
+    if show_romanize:
+        mode_note += " | romanization on"
     print(f"\n[세션 시작: {char_id}. Type /quit to end.{mode_note}]\n")
 
     while True:
@@ -790,6 +803,7 @@ def run(
             beat=beat,
             beat_variant=beat_variant,
             fail_note=ep_fail_note,
+            romanize=show_romanize,
         )
         ep_fail_note = None  # consumed this turn
         last_reply = char_reply
