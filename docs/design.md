@@ -1,373 +1,409 @@
-# Mars Latency Mediation — Design Doc
+# Voice Language Tool — Design Doc
 
-Oct 3, 2026 · @Pt
+Exported Nov 13, 2026 from the shared design doc. The shared doc is the source of truth; re-export after big changes.
 
-## Status
+## Overview
 
-Concept stage. Core thesis and architecture are set; stack and sponsor tracks are chosen. Building in Cursor; this doc is the source of truth for where the idea stands.
+A voice app for practicing Korean and Japanese with persistent characters whose way of speaking to you is earned or lost through how you treat them. Mistakes change the scene instead of triggering a correction card.
 
-| Date | Change | Note |
+**One-liner:** practice being someone in Korea or Japan, with characters who remember how you treated them, in conversation and in your texts.
+
+**Name:** not final. Shortlist: Kotomal (言葉 kotoba + 말 mal, both meaning "words"), Enishi (縁, the bond between people), Goma. Working name in code: kotoba.
+
+**Differentiator: social consequences that persist over time.** Role-play of real-life scenarios is standard (Speak, Praktika, Talkpal, Noonchi). What no app does is make the relationship itself the thing you train: use the wrong speech level and the character goes cold, earn trust and they offer 반말, leave them on read and they notice.
+
+**Lock-in vs. moat**
+
+- **Short-term lock-in:** each user's relationships. Two months of earning Seo-yeon's trust is a reason not to switch. This protects against churn, not against copying.
+- **Long-term moat (doesn't exist yet):** authored characters and story seasons with native-checked cultural rules (IP a competitor can't copy), plus labeled data on learner speech and social appropriateness, which can train a judge nobody else can build.
+
+**Goals for v1**
+
+- One Korean and one Japanese character you'd actually come back to
+- Register choice judged in live conversation, not just grammar
+- Mistakes land as consequences inside the scene, with a short explanation
+- A state model clean enough to scale to more characters, languages and users
+
+**Non-goals for v1:** pronunciation scoring, avatars, accounts and hosting, curriculum content, full keigo production, romance of any kind.
+
+## Positioning
+
+**For people moving to Korea or Japan, not visiting.** Register is a daily, high-stakes problem for people who study, work or live there. Tourists rarely face it: their exchanges are short and scripted, locals forgive foreigners, and a translation app covers most of a trip. Travel motivation also ends on a date, which drives churn.
+
+**Target users, in order**
+
+1. Students heading abroad (exchange, language school, study-abroad programs)
+2. People moving for a job (JET, EPIK, corporate transfers)
+3. Long-term learners who care about the culture (including many beginners)
+4. Later, B2B: study-abroad offices, exchange programs, relocation firms
+
+**Competitors**
+
+| Product | What it does | Gap vs. this product |
 | --- | --- | --- |
-| 2026-10-03 | Added stretch batches | S1 real Mars data (HiRISE + ephemeris delays), S2 Scenario B lab; only Spacetime stays out of scope |
-| 2026-10-03 | Removed Scenario B | Mars surface is the only use case; space biology may be added back if time allows |
-| 2026-10-03 | Batch plan written | 9 batches for a 10-hour solo build; Scenario B moved to roadmap |
-| 2026-10-03 | Locked build decisions | Compressed sim time, honest baseline, plan schema, React + TS + Node |
-| 2026-10-03 | Chose stack and sponsors | Cursor + Grok (LLM + Imagine scene reconstruction) + ElevenLabs; Spacetime parked |
-| 2026-10-03 | Defined interaction contract | Intent → preview → validate → execute → rare one-reply escalations; 8 robot rules |
-| 2026-10-03 | Reframed the claim | We cut round trips and time-to-outcome, not signal latency |
-| 2026-10-03 | Chose architecture | Big model on the ground compiles intent; small executor on the robot |
-| 2026-10-03 | Picked use cases | Mars surface first; space biology moved off the ISS to a far-from-Earth setting |
-| 2026-10-03 | Doc started | SpaceX-sponsored track, AI-in-space direction |
+| Speak | Structured voice lessons, AI tutor, Korean and Japanese | Tutor, not a relationship; no social consequences |
+| Praktika | Avatar tutors with long-term memory | Memory makes it personalized, not consequential |
+| Langua, Practice Me | AI conversation partners that remember you | Same: remembering you is not judging you |
+| Noonchi | Korean AI role-play with feedback on honorifics and tone | Closest competitor; no visible persistent relationships; Korean only |
+| LangBuddy | AI buddy who texts you on WhatsApp/iMessage, with voice notes | Has the texting channel; texts don't carry relationship state or register |
+| HelloTalk, Tandem | Human language exchange (HelloTalk: 70M+ registered) | Partners are peers; they can't be your boss or landlord, and rarely correct register |
 
-## Problem and thesis
+The defensible claim is narrow: nobody makes the *relationship* the thing you train. Re-check Noonchi and LangBuddy before the beta.
 
-**Thesis: we can't beat the speed of light, so we cut how often you have to wait for it.**
+**Market signal:** Japanese is the 4th and Korean the 6th most-studied language on Duolingo. JLPT had 1.65M examinees in 2025; TOPIK had 550K+ from Jan–Sep 2025. International students: 408K in Japan, 274K in Korea. Realistic outcome if retention works: a paid niche product with thousands to tens of thousands of subscribers. Most people moving to Japan/Korea are not English speakers, so more interface languages may matter more than new target languages.
 
-Earth–Mars signal delay is about 3 to 22 minutes each way, set by planetary distance. No software lowers it. Never claim "lower latency" in the physical sense; SpaceX judges will catch it.
+**Early research (Instagram outreach, Nov 2026):** ~25% reply rate on DMs, most repliers fill in the form. Early stories are about *uncertainty* in choosing register (which form is safe, when switching is okay) more than grammar, and real reactions to slips were mild (laughter), which supports gentle, explained consequences.
 
-The real bottleneck is the operating loop. Today a rover acts, sends data home, waits for humans to decide, receives new commands, and repeats. Each step costs a full round trip, often a whole sol.
+## Core mechanic: relationship state
 
-We reduce **effective latency**: time from human intent to completed outcome, measured in round trips. If the robot resolves most decisions locally and calls home only on real uncertainty, a task needing 6 round trips can need 1.
+Each character carries a small state that updates every turn and persists across sessions. The character's reply reads that state; only the judge writes it.
 
-What we claim, in order:
+| Variable | Range | Goes up when | Goes down when | Controls |
+| --- | --- | --- | --- | --- |
+| Closeness | 0–100 | Regular conversation, recalling their details, fitting small talk | Long absence (slow, never punishing), ignoring what they said | Unlocks milestones past thresholds |
+| Respect | 0–100 | Correct register, good repair after a slip | Too casual, 반말 before the offer, rude content | Warmth, willingness to help, how smoothly scenes go |
+| Offense | none / mild / serious | — | One serious breach | Scene branches; repair may be required |
+| Register (theirs → you, yours → them) | per language | They offer a change and you accept | Serious offense resets it | What they use with you, and what they expect back |
 
-1. Fewer round trips per task, so faster missions
-2. Less uplink bandwidth, so cheaper operations
-3. Every plan safety-checked before it leaves Earth, so safer autonomy
+**Social facts** are fixed per character and define what's *correct*: age relative to the player (set relative, not as a number), role, in-group vs. out-group, and a register ceiling.
 
-## System architecture
+**Consequences, from mild to serious**
 
-The big model stays on Earth and compiles intent into a verified contingency plan; a lightweight executor on the robot runs it. Flight computers are weak radiation-hardened chips, so a frontier LLM can't run onboard anyway.
+1. Tone: shorter, more formal replies
+2. Friction: the character asks what you meant, or corrects you in character
+3. Branch: the scene takes a worse path (no favor, colder walk to the subway)
+4. Repair required: the scene waits until you recover in the language, at the right level
 
-&#91;embedded content: ground compiler + onboard executor · one uplink, rare escalations\]
+**Register changes are offered, never taken.** In Korean this is the "말 편하게 해도 돼요" moment. Accepting unlocks the new level; using it early costs respect. Some relationships are **asymmetric**: the other person goes casual while you stay polite (e.g. an older shop owner). Some **cap out** and never go casual.
 
-One compact plan crosses the delay; the robot branches on local sensing and calls home only when no branch fits.
+**Absence is noticed in the story, never punished.** Come back after a week and Seo-yeon says "오랜만이에요!" No streak shame, no guilt messages.
 
-The plan is a strict schema (steps, branch conditions, escalation threshold) shared by the compiler, validator and executor.
+**Relationship milestones.** Progress shows through several signals, not one switch, so a slow arc still visibly moves every week: how they address you (name + 씨 → name), topics that open up, invitations (lunch, team dinner, festival), adding you on KakaoTalk or LINE, and finally the speech-level offer. Each character file lists its milestones with conditions; a short line marks each one ("★ Seo-yeon started calling you by name").
 
-## Interaction contract
+**Player moves.** The player can make social moves too. Inviting a senior to speak casually to you ("선배님, 말 편하게 하세요") is polite and adds closeness; asking to use 반말 yourself before the offer is presumptuous unless closeness is already high. (To be checked by a Korean reviewer.)
 
-The operator never drives the robot; the operator states intent and answers well-formed questions. Everything below is non-negotiable: if the demo breaks one, the pitch breaks.
+**Slip explanations.** After a slip, the player sees one short English line: what they said, why it landed that way, and the better version. Learners feel confusion more than punishment, so explaining matters as much as the reaction.
 
-### The loop
+## Beginners and support levels
 
-1. **Intent:** operator states a goal in plain language, with constraints ("sample the outcrop NE, avoid sand, keep battery above 30%").
-2. **Preview:** the ground compiler shows the plan before it is sent: steps, branches, and what triggers an escalation. Operator approves or edits.
-3. **Validate and uplink:** the safety validator checks the plan; only a passing plan is sent.
-4. **Acknowledge:** the robot confirms receipt and plan version (arrives one delay later).
-5. **Execute:** the robot runs the plan, picks branches from local sensing, and sends short periodic status summaries.
-6. **Escalate (rare):** when no branch fits, the robot enters a safe hold and sends one escalation packet.
-7. **Decide:** operator picks an option; the decision is uplinked as a plan amendment, and execution resumes.
+Many people moving to Korea or Japan are beginners, so support fades as the learner improves:
 
-### Robot non-negotiables
+| Level | What the learner does |
+| --- | --- |
+| 0. Choose and say | Pick one of 2–3 replies (differing mainly in speech level) and say it aloud |
+| 1. Sentence frames | Say a template with one blank, e.g. "저는 ___에서 왔어요" |
+| 2. Help on demand | Free speech with /hint, /en, /frames and English subtitles |
+| 3. Free conversation | No help |
 
-| # | Rule | Why it matters | How the demo shows it |
-| --- | --- | --- | --- |
-| 1 | Bounded autonomy: every action traces to a plan step or branch; nothing improvised | Operators trust it because it can't surprise them | Decision log ties each action to a plan line |
-| 2 | Knows when it doesn't know: escalates whenever conditions fall outside the plan | Autonomy without this is reckless | One staged unexpected obstacle triggers an escalation |
-| 3 | Every escalation is answerable in one reply: what happened, what it sees, 2–3 options, its recommendation | A vague question costs another full round trip | Operator answers with one click |
-| 4 | Safe hold while waiting: stops risky actions but continues independent safe tasks | Idle wait time is the real cost of latency | Robot keeps imaging while awaiting a reply |
-| 5 | Hard limits enforced onboard too, not only on the ground (battery floor, no-go zones, irreversible actions need explicit approval) | Defense in depth; sensing may reveal what the ground missed | Robot refuses a step that would breach the battery floor |
-| 6 | Explains its choices: logs why each branch was taken, in one line | Auditability; judges and operators can follow along | Decision log visible in the UI |
-| 7 | Bandwidth discipline: sends summaries, not raw streams, unless asked | Deep-space bandwidth is scarce and expensive | Bytes-downlinked counter stays low |
-| 8 | Survives link loss: finishes the current plan, then holds safely | Blackouts happen (e.g. solar conjunction) | Toggle the link off mid-mission |
+Characters speak simply at low levels (Seo-yeon is helping a new foreign hire), and expectations rise with level: at support level 2 or below, grammar-only errors cost nothing and register slips cost at most −3 with a gentle reaction. Repeated slips in one session make the character noticeably cooler even when the cost is capped.
 
-### Mission-control non-negotiables
+## Register rules
 
-- **Show staleness honestly:** every view of the robot is labeled "as of N minutes ago," never presented as live.
-- **Abort is defined in advance:** an abort arrives late, so the plan states what "abort" means (e.g. stop and return to the last safe waypoint).
-- **No command without a preview:** the operator always sees the compiled plan before it is sent.
+Korean gates register mostly on age and hierarchy; Japanese mostly on in-group vs. out-group (uchi/soto). These are v1 simplifications: hand-check them, and have a native speaker review them before the beta.
 
-## Tech stack and sponsors
+**Korean**
 
-Stack: Cursor + Grok (ground compiler LLM + Imagine) + ElevenLabs. Each one does a job in the product; nothing is added just for a prize.
-
-| Tech | Role in product | Prize it qualifies for |
+| Level | Example ending | Used when |
 | --- | --- | --- |
-| Cursor | Entire build | SpaceX track (required; more use scores higher) |
-| Grok LLM | Ground compiler: intent → structured contingency plan | SpaceX track |
-| Grok Imagine | Ground-side scene reconstruction from compact robot descriptions | SpaceX track (satisfies Imagine-or-Voice requirement) |
-| ElevenLabs | Speech-to-text for operator intent; two text-to-speech voices | ElevenLabs sponsor prize, MLH ElevenLabs |
-| Grok Bot (process only) | Project planning | SpaceX bonus points |
+| 하십시오체 (formal) | -습니다 / -십시오 | Team leads, formal meetings, presentations |
+| 해요체 (polite) | -아요 / -어요 | Default with most adults, including Seo-yeon at first |
+| 반말 (casual) | -아 / -어, -야 | Only after an offer; older people may use it with you first |
 
-Also entered with no extra tech: Actually Intelligent (AI) track and Grand Prize. Parked for later: Spacetime as the real-time backend for the shared sim and delay link.
+Also judged: -(으)시- when talking about someone senior (missing 께서 alone is not an error), honorific vocabulary (드시다, 계시다), and address terms (선배, 팀장님; never a senior's bare name, and name + 씨 to a senior sounds too familiar). Kinship terms (형, 누나, 오빠, 언니) depend on the player's gender too, so onboarding asks, or lets the player choose how to be addressed.
 
-### Grok Imagine: scene reconstruction
+**Japanese**
 
-Reconstruction strengthens the "cheaper" claim by replacing image downlinks with text.
+| Level | Example | Used when |
+| --- | --- | --- |
+| Keigo (尊敬語 / 謙譲語) | 何になさいますか / 伺います | Service staff, business; learners mostly need to *understand* it |
+| です / ます | 行きます / そうです | Default with acquaintances, including Ren for a long time |
+| Plain form | 行く / そうだよ | In-group only; with Ren after "タメ口でいいよ" |
 
-1. On escalation, the robot downlinks a compact structured scene description (a few hundred bytes), not a raw image (megabytes). Example: "boulder \~1.2 m, 3 m ahead, slope 18° left, loose regolith right."
-2. On the ground, Grok Imagine renders that description as a visual for situational awareness.
-3. The bytes-downlinked counter shows image size vs. description size.
+**Japanese judge scope for v1:** です/ます vs plain form, common set phrases (失礼します, お願いします, お疲れ様です), address terms (さん, 先輩), "too stiff" (correct but socially distant, e.g. heavy keigo with a neighbor), and an indirectness score on request and complaint beats only. Full sonkeigo/kenjōgo production waits for a later business-Japanese track. This also removes the 8B judge's weakest area.
 
-Hallucination safeguards (non-negotiable; prepared answer for judges):
+**Validation layer.** Korean sentence endings are regular enough for a rule-based check that confirms or vetoes the judge's register label. Japanese uses fugashi (MeCab) to tell です/ます from plain form.
 
-- Every generated image is labeled "AI reconstruction: illustrative only."
-- Decisions run on the structured data, never the picture; the options packet stands on its own.
-- Operator can request the real image; the request visibly costs bandwidth and a round trip.
-- Generation runs on the ground during the existing wait, so it adds no mission time.
+**Texting has its own register** (for the texting layer later): ㅋ vs. ㅋㅋㅋ, leaving someone on read (읽씹, 既読スルー), stickers and emoji with seniors.
 
-### ElevenLabs: two voices
+## Characters
 
-- **Speech-to-text:** operator speaks intent to mission control.
-- **Ground assistant voice:** reads back the compiled plan before uplink.
-- **Robot voice:** reads escalations aloud. It plays only after the injected delay, so the audience hears the latency.
-- **Fallback:** typed commands always work, in case venue wifi fails.
+The two leads cover the two halves of a new life, **work and home**, and teach different lessons: Seo-yeon's arc *equalizes* through age and hierarchy (you earn casual speech with a senior), Ren's arc moves slowly from strangers to friends between peers, and teaches indirectness. Both progress through several visible milestones, not just a speech-level switch.
 
-## Build decisions
+**Korean lead: 박서연 (Park Seo-yeon), your 선배 at a Seoul startup**
 
-These are settled; Cursor should treat them as fixed constraints.
+| | |
+| --- | --- |
+| Who | Marketing, two years older than you, assigned to show you the ropes. Sharp, a little overworked, quietly ambitious |
+| Core lesson | Age and hierarchy decide register. Her first real question is "몇 년생이에요?" |
+| Register arc | Both in 해요체 → she may slip into 반말 first (she's older) → "말 편하게 해도 돼요." You keep calling her 선배, and stay polite in front of the team lead |
+| Offenses | 반말 before the offer, calling her name + 씨 (name_ssi_to_senior), missing honorifics about superiors, dropping 선배님 in front of the team lead |
+| Texting | KakaoTalk: ㅋㅋ, ㅠㅠ, late-night complaints about the team lead |
 
-### 1. Compressed sim time
+**Japanese lead: 中島蓮 (Nakajima Ren), your next-door neighbor**
 
-- One shared sim clock drives both panes: **1 real second = 1 simulated minute** (configurable).
-- All delays, counters and voice timing read from that clock, in simulated minutes. Nothing uses wall-clock time directly.
-- Pitch line: "Time is compressed; the ratios are real."
+| | |
+| --- | --- |
+| Who | Same age as you. Grad student who plays guitar in a small band. Polite, a little shy, quietly funny once you know him |
+| Core lesson | Becoming part of someone's circle slowly, plus **indirectness**: raising a problem without complaining directly |
+| Why it's slow | Neighbors in Japan keep a polite distance for a long time, so a drawn-out progression is realistic |
+| Register arc | です/ます for a long time → he starts using casual speech around his friends → "タメ口でいいよ" → first names and LINE |
+| Offenses | Plain form before the offer, sounding too stiff (heavy keigo with a neighbor), complaining bluntly |
+| Texting | LINE, once earned. Stickers matter |
 
-### 2. Honest baseline
+**Supporting cast**
 
-The baseline mirrors real rover operations, not joystick teleop:
+- **오 팀장 (Team lead Oh):** mid-40s, strictly formal; the honorifics test in Seo-yeon's story
+- **中村健二 (Kenji):** owner of the izakaya Ren takes you to; warms up fast, a contrast to Ren; you hear service keigo there
+- **Later:** 高橋健太 (Kenta), a workplace 先輩 for a future business-Japanese track; 한지우 (Ji-woo) for the share-house track
 
-- Mission control uplinks a full command sequence with **no contingencies**.
-- The rover runs it; any surprise (blocked path, hard rock, low battery) means stop and wait for Earth.
-- Each stop costs a full round trip before a new sequence arrives.
+**The player:** a foreigner who just moved there, the same in both languages. Onboarding sets name (in Hangul or kana), age, gender or preferred address terms, and level.
 
-Both panes run the same seed, map, mission and surprises, so the only difference is the system.
+**Character rules:** no romance, even if a user pushes. Characters have their own lives and other friends, never guilt-trip, and are clearly fictional.
 
-### 3. Plan schema (the contract)
+## Story system
 
-One schema, shared by compiler, validator, executor and UI. Actions and conditions are fixed enums per scenario, loaded from a scenario config, so the executor stays deterministic; the LLM may only use these. Values below are for the Mars scenario.
+The app runs in seasons, like a K-drama: episodes with their own plot, so people return for the story, not a streak. **The LLM never invents the plot.** You write each episode as a short series of beats with conditions; the model improvises dialogue only inside the current beat.
 
-- **Actions:** `drive_to`, `image`, `collect_sample`, `drill`, `hold`
-- **Conditions:** `path_blocked`, `rock_too_hard`, `battery_below_floor`, `hazard_detected`, `target_not_found`, `confidence_below`
-- **Branch outcomes:** `goto:<stepId>`, `skip`, `escalate`, `abort`
+```yaml
+episode: seoyeon_s1e03_hoesik
+characters: [seoyeon, team_lead_oh]
+beats:
+  - id: arrive
+    speaker: seoyeon
+    goal: Seo-yeon briefs you on who sits where at the team dinner
+  - id: pour
+    speaker: team_lead_oh
+    goal: Team lead raises his glass; you're expected to offer to pour
+    pass_if: user uses honorifics with the team lead
+    on_fail: Seo-yeon covers for you; respect -3
+  - id: after
+    speaker: seoyeon
+    goal: Walking to the subway, Seo-yeon reacts to how it went
+    variants: [proud, embarrassed]   # chosen by state
+```
+
+This keeps the story's shape in your hands, keeps branching to a few written variants, and makes each episode testable.
+
+Each beat can also carry `beginner_frames`: 2 suggested replies with English glosses, shown at support level 1 or below. Beats advance when the goal is met or after a set number of turns, so a struggling beginner never gets stuck.
+
+**Seo-yeon, Season 1 (Episodes 1–3 are beat-level; 4–7 are outlines)**
+
+1. **첫 주 (First week):** greet (she introduces herself, 해요체) → age ("몇 년생이에요?"; she's two years older, so you should call her 선배/선배님 from now on) → cafeteria (small talk about where you're from, saved as a memory) → hook (tomorrow's first meeting with 오 팀장님)
+2. **첫 실수 (The first mistake):** reminder (a report is due) → report (the team lead asks through her; explain or apologize politely; on fail, she covers for you, respect −2) → advice (thanking her properly adds closeness; warm or tired variant) → hook (invitation to Friday's team dinner)
+3. **회식 (Team dinner),** with 오 팀장: arrive (who sits where) → pour (offer to pour with honorifics; on fail, she covers, respect −3) → question (the team lead asks something personal; answer with honorifics) → after (walking to the subway: proud or embarrassed variant) → hook (she's competing for a promotion)
+4. The promotion race heats up
+5. She asks you a favor
+6. The register offer, if closeness and respect allow it
+7. Finale: the promotion result
+
+**Ren, Season 1**
+
+1. Moving-in greeting: you bring a small gift; formal です/ます, surname + さん
+2. Garbage day: you sort the trash wrong; he quietly helps; first small talk
+3. The noise problem: his guitar late at night; raise it indirectly or bluntly, and the relationship branches
+4. Sharing food (お裾分け): he brings extra; you return the favor
+5. Festival with his friends: he starts using casual speech; you juggle speech levels with strangers
+6. "タメ口でいいよ": first names, LINE
+7. Trust: he asks you to water his plants while he's away
+
+## Architecture and stack
+
+Each turn splits after speech-to-text: one path produces the character's spoken reply, the other judges your turn and updates the relationship. The character reads state but never writes it.
+
+```text
+Push-to-talk ──> Speech-to-text ──> "I heard" ──> Character LLM ──> TTS voice
+                 (raw, not          confirm          ^
+                  normalized)          |             | state + memories + beat
+                                       v             |
+                                   Judge LLM ──> State store ──> Session summary
+                                   (JSON + rule   (bounded
+                                    checks)        deltas)
+```
+
+The judge runs after the reply's first sentence has gone to TTS; its changes apply from the next turn.
+
+**Per turn**
+
+1. Push-to-talk records audio
+2. Speech-to-text returns a raw transcript, settings chosen so mistakes aren't "fixed"
+3. "I heard: …" — accept, re-record or type a correction; low confidence (avg_logprob < −0.7) → the character asks you to repeat, in character, with no judge call
+4. The character replies (streamed sentence by sentence to TTS), conditioned on persona, register, state, memories and the beat goal
+5. The judge scores the accepted text against social facts, state and the current beat; rule checks confirm or veto; changes are written with reasons
+6. A slip explanation is shown to the player if needed
+
+**Stack on the M2 Pro (16 GB), all free and local**
+
+| Layer | Choice | Memory |
+| --- | --- | --- |
+| Speech-to-text | Whisper large-v3-turbo via `mlx-whisper` (large is more accurate on Korean but heavier); SenseVoice as a backup | ~1.6 GB |
+| Character + judge | Qwen3 8B via Ollama, num_ctx 4096, keep_alive 30m, thinking off; judge model configurable (qwen3:4b to test) | ~5 GB |
+| Text-to-speech | macOS `say` during development (testing only, per Apple's license); MeloTTS for demo clips; CosyVoice 2 later | ~0 / ~1–2 GB |
+| Japanese parsing | fugashi (MeCab) + unidic-lite | small |
+| Storage | SQLite + YAML files in git; tests use test.db | — |
+| Interface | Python CLI, then FastAPI backend for the iPhone app | — |
+
+**Measured on the M2 Pro (Nov 12):** speech-to-text ~1.0 s, first reply sentence ~2.5 s, first audio ~4–5 s after confirming the transcript. Memory is the main constraint: with whisper large, MeloTTS and other apps open, the Mac used 16 GB of swap and everything slowed about 10×. The judge takes ~13.6 s (it runs after the reply starts; to be optimized).
+
+**Voice output rules:** only the character's reply text reaches TTS, with emoji and non-Korean text stripped (emoji stay on screen). Check licenses before any public release: Whisper and MeCab allow commercial use; SenseVoice's license is unclear on commercial use.
+
+## Data model
+
+Static content (characters, episodes) lives in YAML files in git; everything that changes lives in SQLite. That split is what lets this scale: new characters and episodes are content, not code.
+
+**Character file**
+
+```yaml
+id: seoyeon
+language: ko
+name: 박서연
+role: senior_coworker        # 선배
+age_offset: +2               # relative to the player
+group: in
+register_to_player_default: haeyo
+register_expected_default: haeyo
+register_ceiling: banmal     # she may offer 반말
+asymmetric_first: true       # she may go casual before you
+beginner_tolerance: true
+offer_threshold: {closeness: 60, respect: 55}
+address_terms: [선배, 선배님]
+offenses:
+  - banmal_before_offer
+  - name_ssi_to_senior
+  - bare_name_or_no_title_in_front_of_boss
+  - missing_honorifics_about_superiors
+milestones:
+  - {id: drops_ssi, conditions: {closeness: 40}, effect: calls you by name without 씨}
+  - {id: lunch_invite, conditions: {closeness: 45, episodes_done: 2}, effect: invites you to lunch}
+  - {id: kakao_add, conditions: {closeness: 50}, effect: adds you on KakaoTalk}
+  - {id: she_goes_casual, conditions: {closeness: 55}, effect: uses 반말 with you first}
+  - {id: banmal_offer, conditions: {closeness: 60, respect: 55}, effect: offers 반말 both ways (private)}
+persona: >
+  Marketing at a Seoul startup, two years ahead of you. Sharp, a
+  little overworked, quietly ambitious. Covers for people she likes.
+voice_id: <tts voice>
+channel: kakaotalk            # for the texting layer later
+```
+
+**Player file (`player.yaml`)**
+
+```yaml
+name: 프라나브
+age: <age>
+gender: <gender>             # or address-term preference
+level_ko: beginner
+level_ja: <level>
+support_level_ko: 1
+support_level_ja: 2
+relationship_speed: 2.0      # testing only; 1.0 for real use
+debug: true                  # testing only
+```
+
+**Tables**
+
+| Table | Key columns | Purpose |
+| --- | --- | --- |
+| `player` | name, age, address_prefs, levels, support levels | Onboarding facts the judge needs |
+| `character_state` | character_id, closeness, respect, offense, register_to_player, register_expected, address_form, milestones_reached, updated_at | One row per character |
+| `memories` | character_id, about (player/character), fact, source_quote, source_turn_id | Facts retrieved into the reply prompt |
+| `episode_progress` | episode_id, current_beat, variant, status | Where you are in each story |
+| `sessions` | character_id, episode_id, started_at, summary | One conversation; summary shown at the end |
+| `turns` | session_id, user_text_raw, user_text_accepted, corrected, avg_logprob, user_register, reply_text, judge_json, stage timings | Full log, judge output as JSON |
+| `state_events` | turn_id, variable, delta, reason | Every change with its reason: tuning trail and future training data |
+
+**Memory rule:** new memories come only from the player's own turns, and each one's `source_quote` must appear in one of those turns. Facts the character states about herself are stored separately as character facts, so she never mistakes her own statements for facts about you. Summaries' "she'll remember" lines come only from validated memories.
+
+## Judge
+
+A separate, low-temperature LLM call that returns structured JSON only and never writes dialogue. Keeping it separate stops the character from grading itself generously. On an 8B local model the judge is the weakest link, so rule-based checks matter most here.
+
+**Inputs:** accepted transcript, character file, current state, current beat and its `pass_if`, last 4 turns (speaker-labeled PLAYER: / character), the register the character expects.
+
+**Output**
 
 ```json
 {
-  "planId": "p-001",
-  "version": 1,
-  "intent": "Sample the layered outcrop NE; avoid sand; keep battery above 30%",
-  "limits": {
-    "batteryFloorPct": 30,
-    "noGoZones": ["sand-1"],
-    "irreversibleNeedsApproval": true
-  },
-  "steps": [
-    {
-      "id": "s1", "action": "drive_to", "args": { "target": "wp-A" },
-      "branches": [
-        { "if": "path_blocked", "then": "goto:s1b" },
-        { "if": "battery_below_floor", "then": "abort" }
-      ]
-    },
-    { "id": "s1b", "action": "drive_to", "args": { "target": "wp-A-alt" } },
-    {
-      "id": "s2", "action": "drill", "args": { "site": "outcrop-1" },
-      "irreversible": true, "approved": true,
-      "branches": [ { "if": "rock_too_hard", "then": "escalate" } ]
-    }
+  "subject": "팀장님",
+  "subject_is_senior": true,
+  "verb_has_honorific": false,
+  "register_used": "banmal",
+  "register_expected": "haeyo",
+  "register_match": false,
+  "offense_ids": ["banmal_before_offer"],
+  "grammar_errors": [
+    {"span": "어제 갈 거예요", "fix": "어제 갔어요", "type": "tense", "severity": "minor"}
   ],
-  "escalateWhen": ["no_branch_matches", "confidence_below:0.6"],
-  "abort": { "behavior": "stop_and_return", "to": "last_safe_waypoint" },
-  "whileWaiting": ["image_surroundings"]
+  "beat_passed": false,
+  "new_memories": [{"about": "player", "fact": "going hiking this weekend", "source_quote": "주말에 등산 가요"}],
+  "state_deltas": {"closeness": 0, "respect": -3},
+  "offense": "mild",
+  "repair_required": false,
+  "reason": "Used 반말 before Seo-yeon offered; content was friendly."
 }
 ```
 
-Escalation packet (robot → ground), designed to be answerable in one reply:
+**Rules enforced in code and prompt**
 
-```json
-{
-  "planId": "p-001",
-  "stepId": "s2",
-  "simTime": 412,
-  "whatHappened": "Drill stalled at 4 cm; rock harder than expected",
-  "scene": { "objects": ["boulder 1.2 m, 3 m ahead"], "slopeDeg": 18, "terrain": "loose regolith right" },
-  "options": [
-    { "id": "o1", "label": "Drill alternate site outcrop-2", "risk": "low", "costMin": 40 },
-    { "id": "o2", "label": "Collect loose surface sample instead", "risk": "low", "costMin": 15 },
-    { "id": "o3", "label": "Retry with higher drill force", "risk": "medium", "costMin": 20 }
-  ],
-  "recommendation": "o1"
-}
-```
+- Per-turn bounds (closeness −3 to +3, respect −10 to +3), so one turn can't swing the relationship; positive closeness multiplied by `relationship_speed`
+- Any slip means no closeness gain that turn
+- Beginner tolerance at support level ≤ 2: grammar-only errors cost 0 respect; register/honorific slips cost at most −3
+- Grammar lowers respect only if it would cause misunderstanding; register errors always count
+- `repair_required` only for serious offense; the next turn is judged on whether it repairs
+- `reason` is mandatory; it goes into `state_events` and the session summary
 
-The `scene` field is what Grok Imagine renders on the ground.
+**Korean rule checks:** the sentence-ending validator; an honorific check for senior subjects (missing 께서 alone is not an error, since 이/가 is normal in everyday 해요체); and an address-term check (name + 씨 to a senior). When a rule check is high-confidence and disagrees with the judge, the rule wins and both are recorded.
 
-### 4. Stack and demo determinism
+**Measured (Nov 12):** register accuracy 100%, offense precision 100%, offense recall 90%. The misses were honorifics, fixed on build-plan Day 21. The test labels still need review by a Korean speaker.
 
-- **Stack:** React + TypeScript (Vite) frontend; small Node/Express backend that holds the Grok and ElevenLabs API keys. Keys never reach the client.
-- **Validation:** plans and packets are validated against the schema (e.g. zod) at every boundary.
-- **Deterministic demo:** fixed map seed and one scripted mission with one staged surprise and one unsafe command.
-- **LLM fallback:** if Grok's plan fails validation after one retry, load a cached known-good plan for that mission.
-
-## Use cases
-
-Mars surface is the core scenario and must work end to end. Scenario B is a stretch goal (Stretch S2): a second config of the same engine, not a second build.
-
-| Scenario | Setting | What it stresses | Example intent |
-| --- | --- | --- | --- |
-| A. Mars surface (core) | Rover on Mars, real terrain and real delay | Navigation and sampling with branching contingencies | "Sample the layered outcrop to the northeast; avoid sand" |
-| B. Biology lab (stretch) | Autonomous life-detection lab on a Mars lander | Delicate, irreversible actions where knowing *when* to escalate matters most | "Run the growth assay; abort if contamination is detected" |
-
-Scenario B must not be set on the ISS: ISS latency is under a second and crew are on board, so the core problem doesn't exist there.
-
-## Demo and metrics
-
-The demo runs the same mission twice, side by side, with a real Earth–Mars delay injected. I play mission control.
-
-- **Left pane, baseline:** conventional sequence with no contingencies. Any surprise means stop and wait a full round trip (Build decisions §2).
-- **Right pane, our system:** I state intent once. The ground model compiles a contingency plan, the robot executes and branches locally, and escalates only when unsure.
-
-Live counters on both panes:
-
-| Metric | Unit | Backs which claim |
-| --- | --- | --- |
-| Mission time | simulated minutes | Faster |
-| Round trips | count | Faster |
-| Bytes uplinked and downlinked | KB | Cheaper |
-| Unsafe commands blocked before uplink | count | Safer |
-| Escalations to human | count | Knows when to ask |
-
-The delay slider should be adjustable (3 to 22 minutes) so judges see the gap widen as Mars moves farther away.
-
-## Data sources
-
-Candidates from memory, not yet verified for the hackathon; confirm access and formats before building on them.
-
-| Source | Use in project | Batch |
-| --- | --- | --- |
-| HiRISE terrain models (DTMs), e.g. Jezero crater | Real Mars terrain, slopes and hazards for the sim map | Stretch S1 |
-| Planetary ephemerides (astronomy-engine npm, or JPL Horizons) | Real Earth–Mars distance → one-way delay for a given date | Stretch S1 |
-| NASA Planetary Data System, rover imagery | Realistic scenes and science targets | Stretch S1 (optional) |
-| NASA GeneLab / Open Science Data Repository | Realistic parameters for the biology lab | Stretch S2 |
-| Sponsor resources | Grok (LLM + Imagine), ElevenLabs; see Tech stack | Core |
+**Evals:** `tests/eval_judge.py` and `tests/eval_validator.py` print a short summary and write details to `tests/eval_results.csv`. Run them yourself in a separate terminal rather than through Claude Code, to save tokens.
 
 ## Build plan
 
-Solo build, about 10 hours. Core: 9 batches (9h15m). Stretch: S1 and S2 (3h15m). Core plus stretch is about 12h30m, more than the time available, so stretch work only happens if the core runs ahead of schedule. Work strictly in order; finish each batch's "done when" check and commit before starting the next.
+**Status (Nov 13):** Milestones 1–3 done. Next: Milestone 4 (beat runner, Seo-yeon Episodes 1–3, the honorific check, relationship milestones). The day-by-day plan is in the separate "Build Plan: Day by Day" doc.
 
-**Instructions for Cursor:** read this whole doc first. Treat Build decisions and the plan schema as fixed. Do one batch per session, and don't build ahead.
+1. **Milestone 1 — STT check:** done. Turbo chosen; no register/honorific corrections; Korean misrecognition is high for a beginner speaker, handled by the "I heard" confirm step
+2. **Milestone 2 — text loop with Seo-yeon:** done. Judge, rule checks, consequences, memory, summaries
+3. **Milestone 3 — voice on the Mac:** done. ~4–5 s to first audio
+4. **Milestone 4 — stories and consequences:** beat runner, Episodes 1–3, honorific check, team lead, relationship milestones, repair, episode summaries
+5. **Milestone 5 — Ren:** ren.yaml, fugashi です/ます check, indirectness judging, episodes 1–3
 
-### Batch 0 — Project setup (0:30)
+**Then the iPhone path:** FastAPI backend on the Mac over Tailscale; SwiftUI app with WhisperKit; relationship screens and SwiftData state; 4–6 weeks of daily personal use; TestFlight beta with 30–50 learners on a hosted model; go / no-go in June 2027.
 
-- Vite + React + TypeScript frontend; Node/Express backend in the same repo
-- `.env` for Grok and ElevenLabs keys, loaded server-side only
-- Copy this doc into `docs/design.md`
-- **Done when:** app runs locally, `/api/health` responds, keys load on the server
+**Known follow-ups:** judge speed (~13.6 s; shorten output, check retries, test qwen3:4b for the judge); more natural voice (MeloTTS / CosyVoice 2) before demo clips; awkward replies to short phrases (add example exchanges to the character prompt); native review of the Korean test labels.
 
-### Batch 1 — Sim core, clock and delay link (1:15)
+## Later features
 
-- Seeded 2D grid map: rover, obstacles, no-go zone (sand), science targets, waypoints
-- Shared sim clock (1 real second = 1 sim minute) with pause and speed control
-- Delay link: a message queue that delivers each message after the one-way delay, in sim minutes, in both directions
-- **Done when:** a command sent from mission control moves the rover only after the delay, and the rover's state reaches mission control one delay later
+**Texting layer: characters in your real phone.** Between sessions, characters message you in the language, tied to the story. Your replies go through the same judge. Channels: KakaoTalk (ko) / LINE (ja) official accounts for immersion; message-style notifications from the app as the easiest; a Telegram bot for personal testing. Guardrails: opt-in, quiet hours, user-set frequency, no guilt-tripping, no romance.
 
-### Batch 2 — Plan schema and onboard executor (1:30)
+**Share-house storyline (Korean, second track).** 한지우 (Han Ji-woo), a same-age housemate trying to break into webtoons, plus an older house manager and a younger student. The lesson shifts from *earning* 반말 to *managing* register across a group, with the house KakaoTalk group chat as the centerpiece.
 
-- TypeScript types and zod validation for the plan and escalation packet (Build decisions §3)
-- Deterministic executor: runs steps, evaluates branch conditions from sim sensing, logs one line per decision
-- Escalation: enters safe hold, runs `whileWaiting` tasks, sends the packet
-- Onboard hard limits: battery floor, no-go zones, irreversible-action approval
-- Use a hand-written plan JSON; no LLM yet. Load action and condition enums from a per-scenario config, not hard-coded, so Scenario B (Stretch S2) reuses the engine
-- **Done when:** the scripted mission runs, takes a branch on the staged obstacle, and escalates on the hard-rock surprise
+**Business-Japanese track.** 高橋健太 (Kenta), a workplace 先輩, with full keigo.
 
-### Batch 3 — Baseline and side-by-side view (1:00)
+**Mirrored worlds.** The same scenario in both languages, then a comparison of where the right move differed.
 
-- Baseline mode per Build decisions §2: a sequence with no contingencies; any surprise means stop and wait a round trip
-- Two panes on the same clock, seed and mission
-- Live counters: mission time, round trips, bytes up/down, escalations, unsafe commands blocked
-- Staleness label on every robot view ("as of N min ago")
-- **Done when:** one run shows our system finishing with clearly fewer round trips and less mission time than the baseline
+## Go-to-market and retention (summary)
 
-**Checkpoint (about 4h15m in):** the core thesis is demoable with no AI. Commit, tag it, and record a backup screen capture.
+- Acquisition: blunder clips, relationship share cards, "tell us your worst register mistake" scenes, expat and language creators, build in public on X, Instagram DMs + a 2-minute form, launches timed to departures (Japan April, Korea March/September, JET summer)
+- Retention: seasons with cliffhangers, characters texting about their own lives, absence noticed warmly, reputation spreading between characters, visible relationship milestones
+- Exchange-app users: position as rehearsal before real exchange; target people frustrated with flaky partners or dating behavior
+- Measure: 30-day retention by user motivation, and shares per user
+- Early supporters: a 350K-follower language creator interested in early access; a UI/UX design student helping with name, brand, character art, landing page and app design (credit + portfolio case study; revisit pay if it grows)
 
-### Batch 4 — Grok ground compiler and plan preview (1:15)
+## Scaling path (summary)
 
-- Text intent box → backend → Grok returns plan JSON constrained to the schema
-- Validate; on failure retry once, then fall back to the cached known-good plan
-- Plan preview UI: steps, branches, escalation triggers; Approve button sends it over the delay link
-- **Done when:** typing the demo intent produces a valid plan that runs end to end
+0. Prove retention in a beta → 1. Own one group (people moving there) → 2. Institutions → 3. More languages (du/Sie, tu/vous, tú/usted, Hindi, Thai, Vietnamese) and interface languages → 4. Platform (authoring tool, fine-tuned judge, licensing). Bottlenecks: native-speaker review per language, LLM cost per user, your time.
 
-### Batch 5 — Safety validator and one-reply escalations (1:00)
-
-- Pre-uplink validator: rejects plans that breach limits, with a reason shown in the UI
-- Escalation panel: what happened, options with risk and cost, recommendation highlighted; one click sends a plan amendment
-- **Done when:** the staged unsafe command is blocked before uplink, and the hard-rock escalation resolves with a single click
-
-### Batch 6 — Grok Imagine scene reconstruction (0:45)
-
-- On escalation, the backend sends the packet's `scene` to Grok Imagine and shows the image in the escalation panel
-- Label: "AI reconstruction: illustrative only"
-- "Request real image" button that costs bandwidth and a round trip in the counters
-- Bytes counter compares description size with real image size
-- **Done when:** every escalation shows a labeled reconstruction, and requesting the real image visibly costs a round trip
-
-**Checkpoint (about 7h15m in):** full SpaceX-eligible demo. Commit and re-record the backup capture.
-
-### Batch 7 — ElevenLabs voice (1:00)
-
-- Speech-to-text for intent (mic button); the typed box stays as fallback
-- Ground assistant voice reads back the compiled plan before approval
-- Robot voice reads escalations, played only when the packet arrives after the delay
-- **Done when:** a full run works by voice, and the typed path still works with the mic off
-
-### Stretch batches
-
-Run these only if checkpoint 2 lands on time. Each must pass its own "done when" before the next starts. Batch 8 (polish) always runs last, after whatever stretch work got done.
-
-### Stretch S1 — Real Mars data (1:45)
-
-The SpaceX track asks for real space data in, so this is the highest-value stretch.
-
-- **Pre-step, do early (even during Batch 1):** download one HiRISE DTM of a rover site (e.g. Jezero crater). Files are large and venue wifi is slow.
-- Offline Python script (rasterio or GDAL): crop and downsample the DTM to a small heightmap (e.g. 128×128 JSON), derive slope, and mark steep cells as hazards and no-go zones
-- Load the heightmap into the sim in place of the synthetic map; keep the synthetic map as a fallback toggle
-- Real delays: compute Earth–Mars distance for a chosen date (e.g. the astronomy-engine npm package, offline), one-way delay = distance ÷ speed of light. A date picker replaces or drives the delay slider
-- **Done when:** the mission runs on real Jezero terrain, and picking a date sets the real delay for that day
-
-### Stretch S2 — Scenario B: autonomous biology lab (1:30)
-
-- Setting: a life-detection lab on a Mars lander (not the ISS)
-- New scenario config only: lab actions (e.g. `prepare_sample`, `incubate`, `image_sample`, `seal`) and conditions (e.g. `contamination_detected`, `growth_below_threshold`); same engine, clock, link, validator and UI
-- Mark irreversible steps (e.g. `seal`, consuming a sample) so escalation behavior is the focus
-- Realistic parameters from NASA GeneLab / OSDR where feasible
-- Scenario switcher in the UI
-- **Done when:** the same side-by-side demo runs in the lab scenario, with one escalation on an irreversible step
-
-### Batch 8 — Polish and demo hardening (1:00)
-
-- Delay slider (3 to 22 sim minutes)
-- "Demo mode" button that resets seed, map and mission in one click
-- Deploy (or confirm a reliable local run), final backup capture, Devpost write-up with screenshots
-- **Done when:** a cold start to a full demo run takes under 3 minutes and works twice in a row
-
-### Cut order if behind
-
-Cut from the top of this list first:
-
-1. Stretch S2 (Scenario B)
-2. HiRISE terrain from Stretch S1 (keep the synthetic map; keep real ephemeris delays, which are cheap)
-3. The rest of Stretch S1
-4. Voice reduced to the robot's escalation voice only
-5. Delay slider (keep one fixed delay)
-6. Validator reduced to the battery floor and no-go zone rules
-
-Never cut: the baseline comparison, one-reply escalation, or Grok Imagine (required for the SpaceX track).
-
-**Out of scope for this build:** Spacetime (parked; revisit only if everything else is done).
-
-## Open questions and risks
-
-- [x] Which hackathon tracks and sponsor resources apply? (see Tech stack)
-- [x] Sim stack: React + TypeScript + Node (see Build decisions §4)
-- [ ] Confirm Grok Imagine API access and credits at the xAI booth
+## Risks and open questions
 
 | Risk | Mitigation |
 | --- | --- |
-| Scope: core + stretch is about 12h30m against 10 solo hours | Stretch only after checkpoint 2 lands on time; cut order drops stretch first; HiRISE download started early |
-| Grok Imagine API unavailable at the event | Confirm first thing; fallback is Grok Voice for the track requirement |
-| Judges ask about hallucinated reconstructions | Labeled illustrative; decisions run on structured data; real image on request |
-| Venue wifi breaks live voice | Typed command fallback always available |
-| Crowded "AI in space" theme | Lead with the physics-aware framing and measured side-by-side numbers |
-| Judges cite existing autonomy (Perseverance AutoNav, AEGIS) | Differentiate on the intent → verified contingency plan layer, not navigation |
-| Onboard compute is weak (radiation-hardened chips) | Big model stays on the ground by design; onboard runs a lightweight executor |
+| STT misrecognizes learner speech | "I heard" confirm step; low-confidence → ask to repeat; beginners use choose-and-say |
+| Weak judge on 8B | Rule checks, bounded deltas, narrow Japanese scope; hosted judge for the beta if needed |
+| Memory pressure on 16 GB | Turbo STT, `say` in development, num_ctx 4096, close other apps |
+| Pacing | Tune from `state_events` over weeks of your own use; reset relationship_speed to 1.0 |
+| Story sprawl | Beat-based episodes, a few written variants only |
+| Latency | Streaming, judge after first sentence, a thinking sound ("음…") |
+| Flat voices | MeloTTS / CosyVoice 2 before the marketing push |
+| Close competitors | Move fast; build content and data, not just the mechanic |
+| Attachment design | No romance, no guilt, characters with their own lives |
+
+**Open questions:** closeness decay with absence or story-only? Can a serious offense permanently cap a relationship? Final app name? Which native speakers will review the Korean and Japanese rules?
