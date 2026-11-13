@@ -122,6 +122,23 @@
 
 ---
 
+## TTS engine (kotoba/tts.py — Day 14)
+
+### Current engine: MeloTTS (Korean neural TTS)
+- voice_id = "KR" (MeloTTS language code); stored in character YAML.
+- Synthesis via `melo.api.TTS(language="KR", device="cpu")`, output to temp WAV, playback via `afplay`.
+- Speed: 1.0 (normal), 0.7 (`/slow`). Instance is lazy-loaded and cached.
+- speak() is a no-op when voice_id is empty.
+
+### Installation notes (Day 14)
+- `brew install mecab mecab-ipadic` — required by fugashi (MeloTTS dep).
+- `pip install git+https://github.com/myshell-ai/MeloTTS.git --no-deps` + manual deps (see requirements.txt) to avoid tokenizers build failure (transformers==4.27.4 pins tokenizers<0.14, no Python 3.12 wheel).
+- `pip install setuptools<70` — newer setuptools drops top-level pkg_resources, breaking librosa 0.9.1.
+- macOS case-insensitive FS conflict: mecab-python3 (`MeCab/`) and python-mecab-ko (`mecab/`) collide. Fix: install python-mecab-ko first, then patch `melo/text/japanese.py` to handle missing MeCab gracefully (Japanese unused).
+- `python -m unidic download` — downloads 526 MB Japanese dictionary (required for MeloTTS import).
+
+---
+
 ## Slip explanation format (kotoba/state.py explain_slip — Day 9)
 
 ### Trigger condition

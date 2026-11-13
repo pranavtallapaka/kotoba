@@ -3,6 +3,8 @@
 Commands during a session:
   /en              English translation of her last line
   /hint <English>  how to say it in Korean at the register she expects
+  /repeat          replay her last line at normal speed
+  /slow            replay her last line slower
   /state           her current state
   /why             last judge reason and state deltas
   /quit            end the session
@@ -13,7 +15,7 @@ from pathlib import Path
 
 import yaml
 
-from kotoba import character, judge as judge_module, llm, state as state_module, summaries
+from kotoba import character, judge as judge_module, llm, state as state_module, summaries, tts
 from kotoba.db import (
     end_session,
     get_state,
@@ -119,6 +121,7 @@ def _do_turn(
     session_memories: list[str],
     stt_meta: dict | None,
     show_subtitle: bool,
+    voice_id: str = "",
 ) -> tuple[judge_module.JudgeResult, list[dict], str]:
     """Run judge → state → reply → log for one accepted turn. Returns (result, events, reply)."""
     state = get_state(char_id)
@@ -143,6 +146,8 @@ def _do_turn(
     else:
         reply_text = character.reply(history, user_input, char_id, repeat_slip=repeat_slip)
         print(f"{char_name}: {reply_text}\n")
+
+    tts.speak(reply_text, voice_id)
 
     if slip_msg:
         print(f"[Slip] {slip_msg}\n")
@@ -252,6 +257,8 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None) -> Non
         _run_batch(char_id, audio_dir, session_id, char, player, initial_state)
         return
 
+    char_voice_id = char.get("voice_id") or ""
+
     history: list[dict] = []
     last_reply: str = ""
     last_judge: judge_module.JudgeResult | None = None
@@ -338,6 +345,20 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None) -> Non
                 print()
             continue
 
+        if user_input == "/repeat":
+            if last_reply:
+                tts.speak(last_reply, char_voice_id)
+            else:
+                print("[No previous reply]\n")
+            continue
+
+        if user_input == "/slow":
+            if last_reply:
+                tts.speak(last_reply, char_voice_id, slow=True)
+            else:
+                print("[No previous reply]\n")
+            continue
+
         result, events, char_reply = _do_turn(
             user_input=user_input,
             char_id=char_id,
@@ -349,6 +370,7 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None) -> Non
             session_memories=session_memories,
             stt_meta=stt_meta,
             show_subtitle=show_subtitle,
+            voice_id=char_voice_id if voice else "",
         )
         last_reply = char_reply
         last_judge = result
