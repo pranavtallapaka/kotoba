@@ -9,6 +9,7 @@ from pathlib import Path
 import yaml
 
 from kotoba import llm
+from kotoba.config import CHARACTER_MODEL
 from kotoba.db import get_memories, get_state, load_player
 
 HERE = Path(__file__).parent
@@ -142,7 +143,7 @@ def reply(
         + history
         + [{"role": "user", "content": user_text}]
     )
-    raw = llm.chat(messages, temperature=0.8)
+    raw = llm.chat(messages, temperature=0.8, model=CHARACTER_MODEL)
     if subtitle:
         if "\nEN: " in raw:
             korean, english = raw.split("\nEN: ", 1)
@@ -164,4 +165,4 @@ def reply_stream(
         + history
         + [{"role": "user", "content": user_text}]
     )
-    return llm.chat_stream(messages, temperature=0.8)
+    return llm.chat_stream(messages, temperature=0.8, model=CHARACTER_MODEL)

@@ -15,6 +15,7 @@ from pydantic import BaseModel, model_validator
 
 from kotoba import llm
 from kotoba import validator_ko
+from kotoba.config import JUDGE_MODEL
 
 HERE = Path(__file__).parent
 ROOT = HERE.parent
@@ -153,7 +154,7 @@ def judge(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": f'Analyze this player turn: "{text}"'},
     ]
-    result = llm.chat_json(messages, JudgeResult, temperature=0.1, num_predict=400)
+    result = llm.chat_json(messages, JudgeResult, temperature=0.1, num_predict=400, model=JUDGE_MODEL)
 
     val_reg, val_conf, _ = validator_ko.classify(text)
     result.validator_register = val_reg

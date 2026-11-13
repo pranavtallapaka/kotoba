@@ -27,6 +27,9 @@ _CHAT_URL = f"{OLLAMA_URL}/api/chat"
 
 def _post(payload: dict) -> dict:
     payload = {"keep_alive": "30m", **payload}
+    opts = payload.get("options", {})
+    opts.setdefault("num_ctx", 4096)
+    payload["options"] = opts
     body = json.dumps(payload).encode()
     req = urllib.request.Request(
         _CHAT_URL,

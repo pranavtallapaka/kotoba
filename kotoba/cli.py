@@ -413,7 +413,7 @@ def _run_bench(char_id: str, audio_dir: Path, voice_id: str) -> None:
     player = load_player()
 
     t_startup = time.perf_counter()
-    print(f"[Bench] Loading models (STT={stt_config._model_key})…", flush=True)
+    print(f"[Bench] Loading models (STT={stt_config._model_key}, TTS={tts._ENGINE})…", flush=True)
     errors: list[str] = []
 
     def _w_stt():
@@ -512,7 +512,7 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None, debug:
 
     if voice and char_voice_id:
         t_startup = time.perf_counter()
-        print(f"[Startup] Loading models (STT={stt_config._model_key}, LLM={char_id})…", flush=True)
+        print(f"[Startup] Loading models (STT={stt_config._model_key}, TTS={tts._ENGINE})…", flush=True)
         _startup_errors: list[str] = []
 
         def _w_stt():
@@ -702,6 +702,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("--debug", action="store_true", help="print per-turn timing line")
     parser.add_argument(
+        "--tts",
+        choices=["say", "melo"],
+        default=None,
+        help="TTS engine: say (default, no model memory) or melo (MeloTTS neural)",
+    )
+    parser.add_argument(
         "--bench",
         metavar="DIR",
         nargs="?",
@@ -711,6 +717,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     _prod_db = (ROOT / "kotoba.db").resolve()
+
+    if args.tts:
+        tts.set_engine(args.tts)
 
     if args.db:
         resolved_db = Path(args.db).resolve()

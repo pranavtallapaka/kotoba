@@ -1,7 +1,8 @@
 """STT configuration: whisper via mlx-whisper.
 
-Model chosen Day 3: large over turbo for Korean accuracy (7/14 vs 4/14 preserved).
-Set KOTOBA_STT=turbo to use whisper-large-v3-turbo (0.67 s, less memory, 4/14 preserved).
+Default: turbo (fast, less memory, Day 3: 0 register errors, 0.67 s median).
+Set KOTOBA_STT=large for the higher-accuracy model (Day 3: same register accuracy,
+7/14 pronunciation rows preserved vs 4/14 for turbo).
 See notes/decisions.md.
 """
 import math
@@ -14,8 +15,8 @@ _MODELS = {
     "turbo": "mlx-community/whisper-large-v3-turbo",
 }
 
-_model_key = os.environ.get("KOTOBA_STT", "large").lower()
-MODEL = _MODELS.get(_model_key, _MODELS["large"])
+_model_key = os.environ.get("KOTOBA_STT", "turbo").lower()
+MODEL = _MODELS.get(_model_key, _MODELS["turbo"])
 
 
 def transcribe(audio_path: str, language: str = "ko") -> tuple[str, float, float]:
