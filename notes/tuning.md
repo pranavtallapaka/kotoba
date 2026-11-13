@@ -53,3 +53,4 @@
 
 Later:
   - Judge misses honorific errors (4/4 Day 7 misses). Fix: honorific rule check + subject/verb fields. Deferred.
+  - Judge takes ~13.6 s. Shorten output/prompt, check retries, test qwen3:4b for the judge. Fix before the beta or before the episodes get long.
