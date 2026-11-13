@@ -39,6 +39,19 @@ _SELECTED_IDS = [
     "ko_22",  # control — correct 존댓말
 ]
 
+_ROMANIZATION = {
+    "ko_01": "sa-jang-nim i-geo meo-geo",
+    "ko_02": "bu-jang-nim nae-il si-gan i-sseo",
+    "ko_03": "seon-saeng-nim-i ji-be ga-sseo-yo",
+    "ko_04": "hal-meo-ni-ga ba-beul meo-geo-yo",
+    "ko_11": "seon-bae o-neul mwo hae",
+    "ko_12": "seon-bae ji-geum i-sseo-yo",
+    "ko_13": "seon-bae eo-di ga-yo",
+    "ko_14": "gam-sa-hae",
+    "ko_21": "an-nyeong-ha-se-yo",
+    "ko_22": "jal ji-nae-syeo-sseo-yo",
+}
+
 
 def _normalize(text: str) -> str:
     return re.sub(r"[^\w]", "", text).strip()
@@ -79,7 +92,10 @@ def main(n: int = 10) -> None:
         etype   = row["error_type"]
         note    = row.get("note", "")
 
+        roman = _ROMANIZATION.get(row_id, "")
         print(f"[{i}/{len(ids)}]  {said}")
+        if roman:
+            print(f"         {roman}")
         print(f"         type={etype}  ({note})")
 
         while True:
