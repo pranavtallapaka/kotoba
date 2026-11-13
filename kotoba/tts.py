@@ -69,3 +69,9 @@ def speak(text: str, voice_id: str, slow: bool = False) -> None:
             play(path)
         finally:
             os.unlink(path)
+
+
+def warmup(voice_id: str) -> None:
+    """Pre-load the TTS model so the first synthesis call isn't delayed by model init."""
+    if voice_id:
+        _get_tts(voice_id)

@@ -173,14 +173,14 @@ def _do_turn(
     _llm_first_ms: list[int] = [0]   # time until first sentence queued for TTS
     _tts_first_ms: list[int] = [0]   # time until first audio plays
 
-    use_streaming = bool(voice_id) and not show_subtitle
+    use_streaming = bool(voice_id)
 
     if not use_streaming:
-        # Non-streaming path (subtitle mode, text mode, batch mode)
+        # Non-streaming path: text mode (no voice), batch mode
         if show_subtitle:
             prompt_to_use = character.build_prompt(char_id, user_input, repeat_slip=repeat_slip, subtitle=True)
         else:
-            prompt_to_use = system_prompt  # already built above
+            prompt_to_use = system_prompt
         t_r = time.perf_counter()
         raw = llm.chat(
             [{"role": "system", "content": prompt_to_use}]
@@ -206,18 +206,11 @@ def _do_turn(
 
         _reply_done.set()
 
-        if voice_id:
-            wav = tts.synthesize(reply_text, voice_id)
-            if wav:
-                _tts_first_ms[0] = int((time.perf_counter() - t0) * 1000)
-                try:
-                    tts.play(wav)
-                finally:
-                    os.unlink(wav)
-
     else:
         # Streaming path: LLM tokens → sentence queue → TTS consumer
+        # Subtitle (if on) is translated in a background thread while audio plays.
         sentence_q: queue.SimpleQueue = queue.SimpleQueue()
+        _subtitle_thread: list = [None]
 
         def _producer():
             t_start = time.perf_counter()
@@ -230,7 +223,6 @@ def _do_turn(
                 sys.stdout.flush()
                 _reply_parts.append(token)
                 korean_buf += token
-                # Flush complete sentences (punc followed by whitespace)
                 while True:
                     m = re.search(r'(.*?[.?!。！？])\s+', korean_buf)
                     if m:
@@ -243,7 +235,6 @@ def _do_turn(
                         korean_buf = korean_buf[m.end():]
                     else:
                         break
-            # Flush remainder
             if korean_buf.strip():
                 if not first_sent:
                     _llm_first_ms[0] = int((time.perf_counter() - t0) * 1000)
@@ -251,6 +242,15 @@ def _do_turn(
             print()
             _reply_ms[0] = int((time.perf_counter() - t_start) * 1000)
             sentence_q.put(None)  # sentinel
+
+            if show_subtitle:
+                captured = "".join(_reply_parts).strip()
+                def _translate():
+                    en = _translate_to_english(captured)
+                    print(f"       ({en})\n", flush=True)
+                t = threading.Thread(target=_translate, daemon=True)
+                t.start()
+                _subtitle_thread[0] = t
 
         def _consumer():
             first = True
@@ -273,8 +273,10 @@ def _do_turn(
         t_prod.start()
         t_cons.start()
         t_prod.join()
-        _reply_done.set()   # reply text done; judge can now print slip
         t_cons.join()       # wait for all audio to finish
+        if _subtitle_thread[0]:
+            _subtitle_thread[0].join()  # subtitle printed before slip
+        _reply_done.set()   # reply text done; judge can now print slip
 
     judge_thread.join()
 
@@ -403,6 +405,10 @@ def run(char_id: str, voice: bool = False, audio_dir: Path | None = None, debug:
         return
 
     char_voice_id = char.get("voice_id") or ""
+
+    # Pre-load TTS model in background so the first turn isn't delayed by init
+    if voice and char_voice_id:
+        threading.Thread(target=tts.warmup, args=(char_voice_id,), daemon=True).start()
 
     history: list[dict] = []
     last_reply: str = ""
