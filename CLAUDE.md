@@ -4,6 +4,10 @@ Voice app for practicing Korean and Japanese. Characters keep a relationship
 state (closeness, respect, offense, register) that changes based on how the
 user speaks to them. Mistakes have social consequences inside the scene.
 
+## Characters
+- Korean lead: 박서연 (Park Seo-yeon), senior coworker at a Seoul startup
+- Japanese lead: 中島蓮 (Nakajima Ren), next-door neighbor in Japan
+
 ## Key rules
 - A separate "judge" LLM call scores each user turn and returns JSON; only the
   judge writes relationship state. The character model reads state, never writes it.
