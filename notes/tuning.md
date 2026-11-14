@@ -54,3 +54,4 @@
 Later:
   - Judge misses honorific errors (4/4 Day 7 misses). Fix: honorific rule check + subject/verb fields. Deferred.
   - Judge takes ~13.6 s. Shorten output/prompt, check retries, test qwen3:4b for the judge. Fix before the beta or before the episodes get long.
+Day 23: relationship milestones — 5 milestones for Seo-yeon (drops_ssi/lunch_invite/kakao_add/she_goes_casual/banmal_offer), milestones_reached+address_form in state, milestone messages printed live, /set triggers checks; next: banmal_offer dialog in-episode, absence decay.

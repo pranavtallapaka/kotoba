@@ -676,13 +676,17 @@ def run(
             state = get_state(char_id)
             r_to = _REGISTER_LABELS.get(state["register_to_player"], state["register_to_player"])
             r_exp = _REGISTER_LABELS.get(state["register_expected"], state["register_expected"])
+            ms = state.get("milestones_reached") or []
+            ms_str = ", ".join(ms) if ms else "(none)"
             print(
                 f"[State]\n"
-                f"  closeness : {state['closeness']}/100\n"
-                f"  respect   : {state['respect']}/100\n"
-                f"  offense   : {state['offense']}\n"
-                f"  her register  : {r_to}\n"
-                f"  expects from you: {r_exp}\n"
+                f"  closeness        : {state['closeness']}/100\n"
+                f"  respect          : {state['respect']}/100\n"
+                f"  offense          : {state['offense']}\n"
+                f"  her register     : {r_to}\n"
+                f"  expects from you : {r_exp}\n"
+                f"  address form     : {state.get('address_form', 'ssi')}\n"
+                f"  milestones       : {ms_str}\n"
             )
             continue
 
@@ -771,19 +775,32 @@ def run(
                 print("[Usage: /set <variable> <value>  — e.g. /set closeness 70]\n")
                 continue
             var, raw_val = parts
-            allowed_str = {"offense"}
+            allowed_str = {"offense", "address_form"}
             allowed_int = {"closeness", "respect"}
             if var in allowed_int:
                 try:
                     update_state(char_id, **{var: int(raw_val)})
-                    print(f"[Set] {var} = {raw_val}\n")
+                    print(f"[Set] {var} = {raw_val}")
                 except ValueError:
                     print(f"[Error] {var} expects an integer\n")
+                    continue
             elif var in allowed_str:
                 update_state(char_id, **{var: raw_val})
-                print(f"[Set] {var} = {raw_val}\n")
+                print(f"[Set] {var} = {raw_val}")
             else:
-                print(f"[Error] unknown variable '{var}' — use closeness, respect, or offense\n")
+                print(f"[Error] unknown variable '{var}' — use closeness, respect, offense, or address_form\n")
+                continue
+            # Check milestones after any /set so thresholds fire immediately.
+            from kotoba import milestones as milestones_mod, db as db_mod
+            _ms_char_path = CHARS_DIR / f"{char_id}.yaml"
+            if _ms_char_path.exists():
+                import yaml as _yaml
+                _ms_char = _yaml.safe_load(_ms_char_path.read_text())
+                _ms_state = get_state(char_id)
+                _ep_done = db_mod.count_episodes_done()
+                for _m in milestones_mod.check(char_id, _ms_char, _ms_state, _ep_done):
+                    print(_m.get("message", f"★ Milestone: {_m['id']}"))
+            print()
             continue
 
         # --- Resolve current beat and speaker before the turn ---
@@ -827,6 +844,10 @@ def run(
         last_reply = char_reply
         last_judge = result
         last_events = events
+
+        for _ev in events:
+            if _ev.get("variable") == "milestone":
+                print(f"\n{_ev['message']}")
 
         # --- Beat runner: advance if pass_if met or turn cap reached ---
         if episode and ep_progress and beat:

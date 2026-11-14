@@ -108,6 +108,12 @@ def build_prompt(
         "\n".join(f"- {m['fact']}" for m in mems) if mems else "(none yet)"
     )
 
+    address_form = state.get("address_form", "ssi")
+    if address_form == "name":
+        address_form_note = "한 (without 씨 — you've grown closer; use the bare name)"
+    else:
+        address_form_note = "한 씨 (default)"
+
     fills = {
         "name": char["name"],
         "persona": char["persona"].strip(),
@@ -122,6 +128,7 @@ def build_prompt(
         ),
         "memories": memories_text,
         "behavior_note": _behavior_note(state, repeat_slip=repeat_slip),
+        "address_form_note": address_form_note,
     }
     template = TEMPLATE.read_text()
     result = template

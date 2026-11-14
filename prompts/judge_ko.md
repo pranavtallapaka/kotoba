@@ -78,7 +78,16 @@ Suggested rules (adjust by context):
 - **mild**: banmal before offer, or missing_honorifics_about_superiors
 - **serious**: very rude content (not triggered by register alone in v1)
 
-### 7. Memories
+### 7. Player social moves (Korean only)
+These are intentional social gestures, not register errors. Detect them by meaning.
+
+- **Inviting the character to drop formality** — player says something like "말 편하게 하세요", "편하게 하셔도 돼요", "편하게 말해요", etc. (inviting the senior to speak casually *to the player*):
+  - Polite and appropriate. closeness +2, no offense, no negative deltas.
+- **Requesting to use 반말 themselves** — player says something like "저도 말 편하게 해도 될까요?", "저도 편하게 말해도 돼요?", etc. (asking to use casual speech toward the character) when `register_expected` is not "banmal":
+  - If closeness < 55: flag `banmal_request_premature` (mild offense), respect −2. Too presumptuous.
+  - If closeness ≥ 55: no offense, closeness +1. The relationship is naturally there.
+
+### 8. Memories
 Note facts worth remembering. Each memory must be a JSON object with three fields:
 - `about`: "user" if the fact is about the player, "seoyeon" if it is about the character herself
 - `fact`: one concise English sentence stating the fact

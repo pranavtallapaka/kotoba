@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS character_state (
     offense             TEXT    DEFAULT 'none',   -- none | mild | serious
     register_to_player  TEXT    NOT NULL,          -- what they use with you
     register_expected   TEXT    NOT NULL,          -- what they expect from you
+    milestones_reached  TEXT    DEFAULT '[]',      -- JSON list of milestone ids
+    address_form        TEXT    DEFAULT 'ssi',     -- ssi | name
     updated_at          TEXT    DEFAULT (datetime('now'))
 );
 

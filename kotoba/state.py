@@ -5,6 +5,8 @@ explain_slip(result, user_text) -> str | None
 """
 from __future__ import annotations
 
+import yaml
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from kotoba import db
@@ -12,6 +14,8 @@ from kotoba.validator_ko import find_register_word
 
 if TYPE_CHECKING:
     from kotoba.judge import JudgeResult
+
+_CHARS_DIR = Path(__file__).parent.parent / "characters"
 
 _BEGINNER_RESPECT_CAP = -3
 _REG_NAMES = {"banmal": "반말", "haeyo": "해요체", "hapsyo": "하십시오체"}
@@ -22,6 +26,7 @@ def apply_turn(
     char_id: str,
     player: dict,
     turn_id: int | None = None,
+    char: dict | None = None,
 ) -> list[dict]:
     """Apply judge deltas to state, log events, store memories. Returns event list."""
     state = db.get_state(char_id)
@@ -97,6 +102,23 @@ def apply_turn(
     for mem in result.new_memories:
         if mem.about == "user":
             db.add_memory(char_id, mem.fact, source_turn_id=turn_id)
+
+    # Milestone check — load char yaml if not supplied by caller.
+    if char is None:
+        char_path = _CHARS_DIR / f"{char_id}.yaml"
+        if char_path.exists():
+            char = yaml.safe_load(char_path.read_text())
+    if char:
+        from kotoba import milestones as milestones_mod
+        updated_state = db.get_state(char_id)
+        episodes_done = db.count_episodes_done()
+        for m in milestones_mod.check(char_id, char, updated_state, episodes_done):
+            events.append({
+                "variable": "milestone",
+                "delta": 0,
+                "reason": m["id"],
+                "message": m.get("message", f"★ Milestone: {m['id']}"),
+            })
 
     return events
 

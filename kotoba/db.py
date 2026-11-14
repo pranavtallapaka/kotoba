@@ -54,6 +54,15 @@ def _migrate() -> None:
     if "turns_on_beat" not in existing_ep:
         conn.execute("ALTER TABLE episode_progress ADD COLUMN turns_on_beat INTEGER DEFAULT 0")
 
+    existing_cs = {row[1] for row in conn.execute("PRAGMA table_info(character_state)")}
+    new_cs_cols = {
+        "milestones_reached": "TEXT DEFAULT '[]'",
+        "address_form": "TEXT DEFAULT 'ssi'",
+    }
+    for col, typedef in new_cs_cols.items():
+        if col not in existing_cs:
+            conn.execute(f"ALTER TABLE character_state ADD COLUMN {col} {typedef}")
+
     conn.commit()
     conn.close()
 
@@ -117,7 +126,9 @@ def get_state(char_id: str) -> dict:
     ).fetchone()
     if row is not None:
         conn.close()
-        return dict(row)
+        state = dict(row)
+        state["milestones_reached"] = json.loads(state.get("milestones_reached") or "[]")
+        return state
     char = _load_char_yaml(char_id)
     conn.execute(
         "INSERT INTO character_state "
@@ -135,6 +146,7 @@ def get_state(char_id: str) -> dict:
         "SELECT * FROM character_state WHERE character_id = ?", (char_id,)
     ).fetchone())
     conn.close()
+    state["milestones_reached"] = json.loads(state.get("milestones_reached") or "[]")
     return state
 
 
@@ -142,10 +154,13 @@ def update_state(char_id: str, **kwargs) -> None:
     allowed = {
         "closeness", "respect", "offense",
         "register_to_player", "register_expected",
+        "milestones_reached", "address_form",
     }
     updates = {k: v for k, v in kwargs.items() if k in allowed}
     if not updates:
         return
+    if "milestones_reached" in updates and isinstance(updates["milestones_reached"], list):
+        updates["milestones_reached"] = json.dumps(updates["milestones_reached"])
     cols = ", ".join(f"{k} = ?" for k in updates)
     vals = list(updates.values()) + [char_id]
     conn = _connect()
@@ -277,6 +292,15 @@ def get_progress(episode_id: str) -> dict | None:
     return dict(row) if row else None
 
 
+def count_episodes_done() -> int:
+    conn = _connect()
+    n = conn.execute(
+        "SELECT COUNT(*) FROM episode_progress WHERE status = 'complete'"
+    ).fetchone()[0]
+    conn.close()
+    return n
+
+
 def set_progress(
     episode_id: str,
     beat_id: str | None,
@@ -321,6 +345,8 @@ def _cmd_show(char_id: str) -> None:
     print(f"  offense          : {s['offense']}")
     print(f"  register → you   : {s['register_to_player']}")
     print(f"  register expects : {s['register_expected']}")
+    print(f"  address_form     : {s.get('address_form', 'ssi')}")
+    print(f"  milestones       : {s.get('milestones_reached', [])}")
     print(f"  updated_at       : {s['updated_at']}")
     mems = get_memories(char_id)
     if mems:

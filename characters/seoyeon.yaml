@@ -13,9 +13,38 @@ address_terms: [선배, 선배님]
 beginner_tolerance: true     # forgives early grammar/particle errors; judges register strictly
 offenses:
   - banmal_before_offer
+  - banmal_request_premature
   - bare_name_or_no_title_in_front_of_boss
   - missing_honorifics_about_superiors
   - name_ssi_to_senior
+milestones:
+  - id: drops_ssi
+    conditions:
+      closeness: 40
+    effect: calls you by name without 씨
+    message: "★ Seo-yeon started calling you by name."
+  - id: lunch_invite
+    conditions:
+      closeness: 45
+      episodes_done: 2
+    effect: invites you to lunch on her own
+    message: "★ Seo-yeon invited you to lunch."
+  - id: kakao_add
+    conditions:
+      closeness: 50
+    effect: adds you on KakaoTalk
+    message: "★ Seo-yeon added you on KakaoTalk."
+  - id: she_goes_casual
+    conditions:
+      closeness: 55
+    effect: uses 반말 with you first
+    message: "★ Seo-yeon started speaking casually with you."
+  - id: banmal_offer
+    conditions:
+      closeness: 60
+      respect: 55
+    effect: "\"말 편하게 해도 돼요.\" — 반말 now allowed in private"
+    message: "★ Seo-yeon said \"말 편하게 해도 돼요.\""
 persona: >
   Marketing at a Seoul startup, two years ahead of you. Sharp, a little
   overworked, quietly ambitious. Covers for people she likes. Her first
