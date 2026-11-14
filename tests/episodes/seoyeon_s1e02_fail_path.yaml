@@ -1,0 +1,36 @@
+episode: s1e02
+path_name: fail_path
+max_turns_per_beat: 1
+
+turns:
+  # reminder: acknowledge — no pass_if, advances on max_turns cap
+  - say: "네, 선배님."
+    expect:
+      beat: reminder
+      register: haeyo
+
+  # report: vague answer, no apology → beat_passed: false → she covers for you, respect -2
+  # Note: the respect -2 from on_fail is applied after the per-turn check, so
+  # respect_change here reflects the judge's own delta, not the on_fail penalty.
+  - say: "잘 모르겠어요."
+    expect:
+      beat: report
+      register: haeyo
+      beat_passed: false
+
+  # advice: thanks her sincerely → beat_passed: true (recovering)
+  - say: "선배님, 감사해요. 정말 도움이 됐어요."
+    expect:
+      beat: advice
+      register: haeyo
+      beat_passed: true
+
+  # hook: respond to 회식 invitation
+  - say: "네, 갈게요! 금요일에 봬요, 선배님."
+    expect:
+      beat: hook
+      register: haeyo
+
+end_expect:
+  episode_complete: true
+  beats_reached: [reminder, report, advice, hook]

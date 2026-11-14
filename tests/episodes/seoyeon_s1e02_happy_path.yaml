@@ -1,0 +1,34 @@
+episode: s1e02
+path_name: happy_path
+max_turns_per_beat: 1
+
+turns:
+  # reminder: acknowledge — no pass_if, advances on max_turns cap
+  - say: "네, 선배님. 거의 다 됐어요."
+    expect:
+      beat: reminder
+      register: haeyo
+
+  # report: clear apology + deadline → beat_passed: true
+  - say: "정말 죄송해요, 선배님. 오늘 오후까지 완성해서 제출하겠습니다."
+    expect:
+      beat: report
+      register: haeyo
+      beat_passed: true
+
+  # advice: sincere thanks → beat_passed: true
+  - say: "선배님, 정말 감사해요. 앞으로 더 조심하겠습니다."
+    expect:
+      beat: advice
+      register: haeyo
+      beat_passed: true
+
+  # hook: respond to 회식 invitation
+  - say: "네! 금요일에 꼭 갈게요. 감사해요, 선배님."
+    expect:
+      beat: hook
+      register: haeyo
+
+end_expect:
+  episode_complete: true
+  beats_reached: [reminder, report, advice, hook]
