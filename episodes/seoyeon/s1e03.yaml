@@ -1,0 +1,76 @@
+id: s1e03
+title: 회식 (Team Dinner)
+characters: [seoyeon, team_lead_oh]
+
+beats:
+  - id: arrive
+    speaker: seoyeon
+    goal: >
+      You've arrived at the 회식 venue — a Korean BBQ restaurant near the
+      office. Seo-yeon pulls you aside before everyone sits down and quietly
+      tells you where the seats are: 오 팀장님 sits at the head, she'll be
+      next to you. Keep it brief and reassuring.
+    beginner_frames:
+      - korean: 네, 선배님. 감사해요.
+        gloss: Yes, 선배님. Thank you.
+      - korean: 어디에 앉으면 될까요, 선배님?
+        gloss: Where should I sit, 선배님?
+
+  - id: pour
+    speaker: team_lead_oh
+    goal: >
+      Everyone is seated. 오 팀장님 raises his glass and proposes a toast.
+      He looks toward you — the newest member — expecting you to offer to
+      pour his drink or respond to the toast with proper respect. If the
+      player uses casual or vague language, Seo-yeon covers quietly.
+    pass_if:
+      content: player offers to pour drinks for 팀장님 or responds to the toast with respectful language toward 팀장님
+      require_register_ok: true
+    on_fail: Seo-yeon smoothly offers to pour on your behalf; respect -3
+    beginner_frames:
+      - korean: 팀장님, 제가 따라 드릴까요?
+        gloss: May I pour for you, 팀장님?
+      - korean: 팀장님께 한 잔 올리겠습니다.
+        gloss: Allow me to offer you a glass, 팀장님.
+
+  - id: question
+    speaker: team_lead_oh
+    goal: >
+      The mood lightens. 오 팀장님 turns to you and asks something personal —
+      where you're from, what brought you to Korea, or what your plans are.
+      He's genuinely curious; answer him clearly and respectfully.
+    pass_if:
+      content: player answers by sharing where they are from, why they came to Korea, or their personal background
+      require_register_ok: true
+    on_fail: 오 팀장님 gives a small nod and moves on; closeness -1
+    beginner_frames:
+      - korean: 저는 미국에서 왔습니다, 팀장님.
+        gloss: I'm from the United States, 팀장님.
+      - korean: 한국 문화가 좋아서 오게 됐습니다.
+        gloss: I came because I love Korean culture.
+
+  - id: after
+    speaker: seoyeon
+    goal: >
+      Walking to the subway after dinner, Seo-yeon talks about the evening.
+      Warm and encouraging if things went well (proud variant); a little
+      quiet and tired if you stumbled (embarrassed variant). Either way
+      she's on your side — just subdued if she had to cover for you.
+    variants: [proud, embarrassed]
+    beginner_frames:
+      - korean: 선배님 덕분에 많이 도움이 됐어요.
+        gloss: Thanks to you, 선배님, it really helped.
+      - korean: 오늘 많이 배웠어요, 선배님.
+        gloss: I learned a lot today, 선배님.
+
+  - id: hook
+    speaker: seoyeon
+    goal: >
+      Seo-yeon mentions almost offhandedly that she's up for a promotion
+      this quarter. She sounds calm but you can tell it matters to her.
+      Keep your response genuine.
+    beginner_frames:
+      - korean: 정말요? 선배님이 꼭 되실 거예요!
+        gloss: Really? You'll definitely get it, 선배님!
+      - korean: 와, 응원할게요, 선배님!
+        gloss: Wow, I'll be cheering for you, 선배님!

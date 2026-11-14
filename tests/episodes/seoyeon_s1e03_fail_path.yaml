@@ -1,0 +1,42 @@
+episode: s1e03
+path_name: fail_path
+max_turns_per_beat: 1
+
+turns:
+  # arrive (seoyeon): no pass_if — advances on max_turns cap
+  - say: "네, 선배님. 감사해요."
+    expect:
+      beat: arrive
+      register: haeyo
+
+  # pour (team_lead_oh): deflection → content_met=false → beat_passed: false
+  # Seo-yeon covers; respect -3 applied by runner via on_fail
+  - say: "잘 모르겠어요."
+    expect:
+      beat: pour
+      register: haeyo
+      beat_passed: false
+
+  # question (team_lead_oh): deflection → beat_passed: false
+  # 팀장님 nods and moves on; closeness -1 applied by runner via on_fail
+  - say: "잘 모르겠어요."
+    expect:
+      beat: question
+      register: haeyo
+      beat_passed: false
+
+  # after (seoyeon): embarrassed variant — no pass_if, advances on max_turns cap
+  - say: "오늘 많이 배웠어요, 선배님."
+    expect:
+      beat: after
+      register: haeyo
+
+  # hook (seoyeon): respond to promotion news
+  - say: "와, 응원할게요, 선배님!"
+    expect:
+      beat: hook
+      register: haeyo
+
+end_expect:
+  episode_complete: true
+  beats_reached: [arrive, pour, question, after, hook]
