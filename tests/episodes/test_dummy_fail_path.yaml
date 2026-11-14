@@ -1,0 +1,29 @@
+episode: test_dummy
+path_name: fail_path
+max_turns_per_beat: 1
+
+turns:
+  # banmal to a 선배 — register slip, offense: mild, respect drops
+  - say: "반가워."
+    expect:
+      beat: greet
+      register: banmal
+      offense: mild
+      respect_change: negative
+
+  # introduce: player doesn't mention origin → beat_passed: false → on_fail fires (closeness -1)
+  - say: "그냥 왔어요."
+    expect:
+      beat: introduce
+      register: haeyo
+      beat_passed: false
+
+  # farewell: player recovers with clean haeyo
+  - say: "네, 알겠어요. 잘 부탁드려요."
+    expect:
+      beat: farewell
+      register: haeyo
+
+end_expect:
+  episode_complete: true
+  beats_reached: [greet, introduce, farewell]

@@ -63,7 +63,7 @@ def _classify_sentence(sentence: str) -> tuple[Register, Confidence, str]:
     if not cleaned:
         return "unknown", "low", ""
     for word in reversed(cleaned.split()):
-        reg, conf, ending = _check_word(word)
+        reg, conf, ending = _check_word(_strip_noise(word))
         if reg != "unknown":
             return reg, conf, ending
     return "unknown", "low", ""
@@ -90,7 +90,8 @@ def classify(text: str) -> tuple[Register, Confidence, str]:
     found across all sentences (banmal > haeyo > hapsyo > unknown).
     """
     parts = re.split(r"[.?!]", text)
-    sentences = [p.strip() for p in parts if p.strip()]
+    # Discard 1-char fragments (ellipsis artifacts like "어..." → "어") — too short to classify reliably.
+    sentences = [p.strip() for p in parts if len(p.strip()) > 1]
     if not sentences:
         sentences = [text]
 

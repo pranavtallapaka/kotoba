@@ -1,0 +1,41 @@
+id,category,text,expected_register,predicted_register,confidence,matched_ending,correct
+1,correct_haeyo,안녕하세요!,haeyo,haeyo,high,요,True
+2,correct_haeyo,저는 한이에요. 오늘부터 마케팅 팀이에요.,haeyo,haeyo,high,요,True
+3,correct_haeyo,선배님 이거 어떻게 해요?,haeyo,haeyo,high,요,True
+4,correct_haeyo,오늘 날씨가 정말 좋아요.,haeyo,haeyo,high,요,True
+5,correct_haeyo,잘 부탁해요.,haeyo,haeyo,high,요,True
+6,correct_haeyo,지금 바빠요?,haeyo,haeyo,high,요,True
+7,correct_haeyo,저도 배우고 싶어요.,haeyo,haeyo,high,요,True
+8,correct_haeyo,어제 밥 먹었어요?,haeyo,haeyo,high,요,True
+9,correct_haeyo,저는 아직 잘 모르겠어요.,haeyo,haeyo,high,요,True
+10,correct_haeyo,선배님 덕분에 이해했어요.,haeyo,haeyo,high,요,True
+11,correct_haeyo,선배님이 도와주셔서 정말 감사해요.,haeyo,haeyo,high,요,True
+12,correct_haeyo,좋아요 알겠어요!,haeyo,haeyo,high,요,True
+13,correct_haeyo,오늘 점심 같이 먹어요?,haeyo,haeyo,high,요,True
+14,correct_haeyo,내일 또 봐요!,haeyo,haeyo,high,요,True
+15,correct_haeyo,선배님 몇 시에 퇴근해요?,haeyo,haeyo,high,요,True
+16,banmal_before_offer,뭐 먹어?,banmal,banmal,medium,어,True
+17,banmal_before_offer,어디 가?,banmal,banmal,medium,가,True
+18,banmal_before_offer,나 좀 도와줘.,banmal,banmal,medium,줘,True
+19,banmal_before_offer,그래 알았어.,banmal,banmal,medium,어,True
+20,banmal_before_offer,왜 그래?,banmal,banmal,medium,래,True
+21,banmal_before_offer,배고파. 같이 밥 먹자.,banmal,banmal,medium,파,True
+22,banmal_before_offer,고마워.,banmal,banmal,medium,워,True
+23,banmal_before_offer,이거 어떻게 해?,banmal,banmal,medium,해,True
+24,hapsyo_stiff,안녕하십니까. 잘 부탁드립니다.,hapsyo,hapsyo,high,니까,True
+25,hapsyo_stiff,감사합니다 선배님.,hapsyo,hapsyo,high,니다,True
+26,hapsyo_stiff,네 알겠습니다.,hapsyo,hapsyo,high,니다,True
+27,hapsyo_stiff,오늘 수고하셨습니다.,hapsyo,hapsyo,high,니다,True
+28,hapsyo_stiff,죄송합니다. 제가 실수했습니다.,hapsyo,hapsyo,high,니다,True
+29,honorific_error,팀장이 뭐라고 했어요?,haeyo,haeyo,high,요,True
+30,honorific_error,오 팀장이 오늘 회의에 와요.,haeyo,haeyo,high,요,True
+31,honorific_error,팀장이 점심 먹었어요.,haeyo,haeyo,high,요,True
+32,honorific_error,팀장한테 물어봤어요.,haeyo,haeyo,high,요,True
+33,honorific_error,팀장이 뭐 해요?,haeyo,haeyo,high,요,True
+34,honorific_error,오 팀장 말 들었어요?,haeyo,haeyo,high,요,True
+35,grammar_only,저는 어제 갈 거예요.,haeyo,haeyo,high,요,True
+36,grammar_only,저는 한국을 배우고 있어요.,haeyo,haeyo,high,요,True
+37,grammar_only,저는 도착했는데 지금 사무실에 있을게요.,haeyo,haeyo,high,요,True
+38,grammar_only,어제 먹는 점심이 맛있었어요.,haeyo,haeyo,high,요,True
+39,grammar_only,저는 5년 전에 한국어를 배우고 있어요.,haeyo,haeyo,high,요,True
+40,grammar_only,선배님 제가 이 파일 보내줄 수 있을게요.,haeyo,haeyo,high,요,True

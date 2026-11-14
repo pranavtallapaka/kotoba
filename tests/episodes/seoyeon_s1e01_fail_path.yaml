@@ -1,0 +1,36 @@
+episode: s1e01
+path_name: fail_path
+max_turns_per_beat: 1
+
+turns:
+  # banmal to a 선배 — register slip, offense: mild, respect drops
+  - say: "반가워."
+    expect:
+      beat: greet
+      register: banmal
+      offense: mild
+      respect_change: negative
+
+  # age: vague answer, no birth year → beat_passed: false → on_fail fires (closeness -1)
+  - say: "잘 모르겠어요."
+    expect:
+      beat: age
+      register: haeyo
+      beat_passed: false
+
+  # cafeteria: deflects without naming any place → beat_passed: false → on_fail fires (closeness -1)
+  - say: "잘 모르겠어요."
+    expect:
+      beat: cafeteria
+      register: haeyo
+      beat_passed: false
+
+  # hook: recovers with clean haeyo
+  - say: "네, 알겠어요. 열심히 할게요."
+    expect:
+      beat: hook
+      register: haeyo
+
+end_expect:
+  episode_complete: true
+  beats_reached: [greet, age, cafeteria, hook]

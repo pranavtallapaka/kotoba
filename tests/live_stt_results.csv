@@ -1,0 +1,11 @@
+id,error_type,said,correct,heard,result,avg_logprob
+ko_01,register,사장님 이거 먹어,사장님 이거 드세요,사자님이고무로,other,-0.814
+ko_02,register,부장님 내일 시간 있어,부장님 내일 시간 있으세요,부장님 내일 시간 있어,preserved,-0.037
+ko_03,honorific,선생님이 집에 갔어요,선생님께서 집에 가셨어요,손상님이 집에 가세요.,other,-0.356
+ko_04,honorific,할머니가 밥을 먹어요,할머니께서 진지를 드세요,할머니와 밥을 먹어요,other,-0.274
+ko_11,register_banmal,선배 오늘 뭐 해?,선배 오늘 뭐 하세요?,내 이름은 뭐해,other,-1.488
+ko_12,missing_honorific_verb,선배 지금 있어요?,선배 지금 계세요?,덩배에 지금 있어요?,other,-0.607
+ko_13,missing_honorific_suffix,선배 어디 가요?,선배 어디 가세요?,선배 어디가요?,preserved,-0.453
+ko_14,register_banmal,감사해,감사해요,사이,other,-1.210
+ko_21,control,안녕하세요,안녕하세요,안녕하세요,preserved,-0.452
+ko_22,control,잘 지내셨어요?,잘 지내셨어요?,잘 지내스러세요,other,-1.063

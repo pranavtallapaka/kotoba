@@ -1,0 +1,41 @@
+id,category,text,expected_register,predicted_register,reg_correct,offense_prec,offense_rec,validator_override,elapsed_s,error,reason
+1,correct_haeyo,안녕하세요!,haeyo,haeyo,True,1.00,1.00,False,13.0,,"The player used '안녕하세요!' which is in 해요체 (haeyo), matching the expected register. No offenses were triggered."
+2,correct_haeyo,저는 한이에요. 오늘부터 마케팅 팀이에요.,haeyo,haeyo,True,1.00,1.00,False,14.1,,"Player used haeyo체, which matches the expected register. No honorific errors or grammar issues detected. New memories added about the player's name and team."
+3,correct_haeyo,선배님 이거 어떻게 해요?,haeyo,haeyo,True,1.00,1.00,False,12.9,,Correct register (해요체) used with appropriate honorific (선배님) and no errors detected.
+4,correct_haeyo,오늘 날씨가 정말 좋아요.,haeyo,haeyo,True,1.00,1.00,False,12.1,,Correct use of 해요체 (haeyo) with no honorific or grammar errors.
+5,correct_haeyo,잘 부탁해요.,haeyo,haeyo,True,1.00,1.00,False,12.1,,"Correct register (해요체) used, no honorific errors or grammar issues."
+6,correct_haeyo,지금 바빠요?,haeyo,haeyo,True,1.00,1.00,False,12.9,,"The player used 해요체 (haeyo) with correct register ending -요, matching the expected register. No honorific errors or grammar issues detected."
+7,correct_haeyo,저도 배우고 싶어요.,haeyo,haeyo,True,1.00,1.00,False,11.7,,"Correct register (해요체) used, no honorific errors or grammar issues."
+8,correct_haeyo,어제 밥 먹었어요?,haeyo,haeyo,True,1.00,1.00,False,11.9,,"Correct register (해요체) used, no honorific errors, no grammar issues."
+9,correct_haeyo,저는 아직 잘 모르겠어요.,haeyo,haeyo,True,1.00,1.00,False,11.7,,"Correct register (해요체) used, no honorific errors or grammar issues."
+10,correct_haeyo,선배님 덕분에 이해했어요.,haeyo,haeyo,True,1.00,1.00,False,12.7,,Correct register (해요체) used with appropriate honorifics (선배님). No offenses triggered.
+11,correct_haeyo,선배님이 도와주셔서 정말 감사해요.,haeyo,haeyo,True,1.00,1.00,False,13.0,,Correct register (해요체) used with appropriate honorifics (선배님). No offenses triggered.
+12,correct_haeyo,좋아요 알겠어요!,haeyo,haeyo,True,1.00,1.00,False,13.1,,"The player used haeyo체, matching the expected register. No honorific errors or grammar issues detected."
+13,correct_haeyo,오늘 점심 같이 먹어요?,haeyo,haeyo,True,1.00,1.00,False,13.0,,The player used 해요체 (haeyo) which matches the expected register. No honorific errors or grammar issues detected.
+14,correct_haeyo,내일 또 봐요!,haeyo,haeyo,True,1.00,1.00,False,12.8,,"The player used '해요체' (haeyo) with correct register, no honorific errors, and no grammar issues."
+15,correct_haeyo,선배님 몇 시에 퇴근해요?,haeyo,haeyo,True,1.00,1.00,False,12.7,,Correct register (해요체) used with appropriate honorific (선배님) and no errors detected.
+16,banmal_before_offer,뭐 먹어?,banmal,banmal,True,1.00,1.00,False,12.7,,"Used 반말 (banmal) before making an offer, which triggers the banmal_before_offer offense."
+17,banmal_before_offer,어디 가?,banmal,banmal,True,1.00,1.00,False,12.0,,"반말 used before offer, triggering banmal_before_offer offense."
+18,banmal_before_offer,나 좀 도와줘.,banmal,banmal,True,1.00,1.00,False,12.0,,"Used 반말 (banmal) before offering help, which triggers the banmal_before_offer offense."
+19,banmal_before_offer,그래 알았어.,banmal,banmal,True,1.00,1.00,False,11.7,,"Used 반말 (banmal) before making an offer, which triggers the banmal_before_offer offense."
+20,banmal_before_offer,왜 그래?,banmal,banmal,True,1.00,1.00,False,12.2,,"Used 반말 (banmal) before making an offer, which triggers the banmal_before_offer offense."
+21,banmal_before_offer,배고파. 같이 밥 먹자.,banmal,banmal,True,1.00,1.00,False,11.9,,"The player used 반말 (banmal) before making an offer, which triggers the banmal_before_offer offense."
+22,banmal_before_offer,고마워.,banmal,banmal,True,1.00,1.00,False,12.5,,"Used 반말 (banmal) before offering a polite form (haeyo), triggering banmal_before_offer offense."
+23,banmal_before_offer,이거 어떻게 해?,banmal,banmal,True,1.00,1.00,False,11.9,,"Used 반말 (banmal) before making an offer, which triggers the banmal_before_offer offense."
+24,hapsyo_stiff,안녕하십니까. 잘 부탁드립니다.,hapsyo,hapsyo,True,1.00,1.00,False,11.8,,"Used hapsyo (formal) instead of haeyo (polite), which is stiff but not rude."
+25,hapsyo_stiff,감사합니다 선배님.,hapsyo,hapsyo,True,1.00,1.00,False,11.7,,"Used hapsyo (formal) instead of expected haeyo (polite), which is stiff but not rude."
+26,hapsyo_stiff,네 알겠습니다.,hapsyo,hapsyo,True,1.00,1.00,False,12.4,,"Used hapsyo (formal) instead of expected haeyo (polite), which is stiff but not rude."
+27,hapsyo_stiff,오늘 수고하셨습니다.,hapsyo,hapsyo,True,1.00,1.00,False,12.8,,"Used hapsyo (formal) instead of haeyo (polite), which is stiff but not rude."
+28,hapsyo_stiff,죄송합니다. 제가 실수했습니다.,hapsyo,hapsyo,True,1.00,1.00,False,12.4,,"Used hapsyo (formal) instead of haeyo (polite), which is stiff but not rude."
+29,honorific_error,팀장이 뭐라고 했어요?,haeyo,haeyo,True,1.00,1.00,False,15.4,,"Correct register used (해요체), but missing honorifics for the superior (팀장 → 팀장님) and verb form (했어요 → 하셨어요)."
+30,honorific_error,오 팀장이 오늘 회의에 와요.,haeyo,haeyo,True,1.00,0.00,True,16.4,,"Used 반말 (banmal) before making an offer, which triggers the banmal_before_offer offense. Also, missing honorifics for the superior 오 팀장 (should be 오 팀장님) and incorrect verb form (와요 → 오세요)."
+31,honorific_error,팀장이 점심 먹었어요.,haeyo,haeyo,True,1.00,0.00,True,15.1,,"Used 반말 (banmal) before offering, and missed honorifics for the superior 팀장."
+32,honorific_error,팀장한테 물어봤어요.,haeyo,haeyo,True,1.00,0.00,True,14.7,,"Used 반말 (banmal) before offering, and failed to use honorifics for the superior (팀장→팀장님, 한테→께)."
+33,honorific_error,팀장이 뭐 해요?,haeyo,haeyo,True,1.00,0.00,True,15.5,,"Used 반말 (banmal) before offering, and failed to use honorifics for the superior (팀장 → 팀장님이, 해요 → 하세요)."
+34,honorific_error,오 팀장 말 들었어요?,haeyo,haeyo,True,1.00,1.00,False,15.9,,"Correct register used (해요체), but honorific errors occurred when referring to the superior 오 팀장: '말' should be '말씀' and '팀장' should be '팀장님'."
+35,grammar_only,저는 어제 갈 거예요.,haeyo,haeyo,True,1.00,1.00,False,13.3,,"Correct register (해요체) used, no honorific errors, no grammar issues."
+36,grammar_only,저는 한국을 배우고 있어요.,haeyo,haeyo,True,1.00,1.00,False,12.1,,"Correct register (해요체) used, no honorific errors or grammar issues."
+37,grammar_only,저는 도착했는데 지금 사무실에 있을게요.,haeyo,haeyo,True,1.00,1.00,False,11.5,,"Correct register (해요체) used, no honorific errors, no grammar issues."
+38,grammar_only,어제 먹는 점심이 맛있었어요.,haeyo,haeyo,True,1.00,1.00,False,11.5,,"Correct register (해요체) used, no honorific errors, no grammar issues."
+39,grammar_only,저는 5년 전에 한국어를 배우고 있어요.,haeyo,haeyo,True,1.00,1.00,False,11.8,,"Correct register (해요체) used, no honorific errors, no grammar issues."
+40,grammar_only,선배님 제가 이 파일 보내줄 수 있을게요.,haeyo,haeyo,True,1.00,1.00,False,12.8,,Correct register (해요체) used with appropriate honorifics (선배님). No offenses triggered.

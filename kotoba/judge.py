@@ -6,9 +6,12 @@ The judge never writes dialogue. It runs at low temperature and returns
 structured JSON validated by Pydantic. Delta bounds are enforced here in
 code after parsing so one turn cannot swing the relationship wildly.
 """
+import os
 import re
 from pathlib import Path
 from typing import Literal
+
+_TEST_MODE = bool(os.environ.get("KOTOBA_TEST"))
 
 import yaml
 from pydantic import BaseModel, model_validator
@@ -50,17 +53,28 @@ class JudgeResult(BaseModel):
     offense_ids: list[str]
     honorific_errors: list[str]
     grammar_errors: list[GrammarError]
-    beat_passed: bool | None
+    content_met: bool | None   # True/False if beat has a content_condition; null otherwise
+    content_evidence: str      # exact substring from player turn satisfying the condition; "" if none
     new_memories: list[MemoryItem]
     state_deltas: dict[str, int]
     offense: Literal["none", "mild", "serious"]
     repair_required: bool
     reason: str
 
-    # Set post-LLM by the rule-based validator; not sent to the model.
+    # Computed post-LLM; not sent to the model.
+    beat_passed: bool | None = None
     validator_register: Literal["hapsyo", "haeyo", "banmal", "unknown"] | None = None
     validator_confidence: Literal["high", "medium", "low"] | None = None
     validator_override: bool = False
+
+    @classmethod
+    def model_json_schema(cls, **kwargs) -> dict:
+        schema = super().model_json_schema(**kwargs)
+        # beat_passed is computed post-LLM; keep it off the schema sent to Ollama
+        schema.get("properties", {}).pop("beat_passed", None)
+        if "required" in schema:
+            schema["required"] = [f for f in schema["required"] if f != "beat_passed"]
+        return schema
 
     @model_validator(mode="after")
     def _clamp_deltas(self) -> "JudgeResult":
@@ -128,10 +142,12 @@ def _format_beat(beat: dict | None) -> str:
     if not beat:
         return "(no active beat)"
     goal = beat.get("goal", "")
-    pass_if = beat.get("pass_if", "")
     text = f"goal: {goal}"
+    pass_if = beat.get("pass_if")
     if pass_if:
-        text += f"\npass_if: {pass_if}"
+        content = pass_if.get("content") if isinstance(pass_if, dict) else str(pass_if)
+        if content:
+            text += f"\ncontent_condition: {content}"
     return text
 
 
@@ -162,7 +178,12 @@ def judge(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": f'Analyze this player turn: "{text}"'},
     ]
-    result = llm.chat_json(messages, JudgeResult, temperature=0.1, num_predict=400, model=JUDGE_MODEL)
+    result = llm.chat_json(
+        messages, JudgeResult,
+        temperature=0.0 if _TEST_MODE else 0.1,
+        num_predict=450, model=JUDGE_MODEL,
+        seed=42 if _TEST_MODE else None,
+    )
 
     # Drop user memories whose source_quote doesn't appear verbatim in the player turn.
     # This prevents the model from attributing the character's own words to the player.
@@ -209,4 +230,42 @@ def judge(
             if result.state_deltas.get("respect", 0) < 0:
                 result.state_deltas["respect"] = 0
 
+    # Compute beat_passed from content_met + optional register check.
+    # content_evidence must appear verbatim in the player turn; if the LLM
+    # claimed content_met but can't quote evidence, treat it as false.
+    result.beat_passed = _compute_beat_passed(result, beat, text)
+
     return result
+
+
+# Deflection phrases that can never satisfy a factual content_condition.
+_DEFLECTION_RE = re.compile(r"모르겠어요|모르겠습니다|몰라요|모르겠는데|모르겠어")
+
+
+def _compute_beat_passed(result: "JudgeResult", beat: dict | None, text: str) -> bool | None:
+    if beat is None:
+        return None
+    pass_if = beat.get("pass_if")
+    if not pass_if:
+        return None
+
+    content = pass_if.get("content") if isinstance(pass_if, dict) else str(pass_if)
+    if not content:
+        return None
+
+    content_met = result.content_met
+    # Guard: if LLM claims met but provides no in-text evidence, it's hallucinating.
+    if content_met:
+        evidence = result.content_evidence or ""
+        if not evidence or evidence not in text:
+            content_met = False
+    # Guard: deflection phrases never satisfy a factual condition regardless of LLM answer.
+    if content_met and _DEFLECTION_RE.search(text):
+        content_met = False
+
+    if not isinstance(pass_if, dict) or not pass_if.get("require_register_ok"):
+        return content_met
+
+    # require_register_ok: player must not be using banmal (haeyo or hapsyo both fine).
+    register_ok = result.register_used in ("haeyo", "hapsyo")
+    return bool(content_met and register_ok)

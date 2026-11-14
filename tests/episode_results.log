@@ -1,0 +1,81 @@
+
+============================================================
+Path: s1e01/fail_path  max_turns_per_beat=1
+============================================================
+
+Turn 1: '반가워.'  beat=greet
+  register=banmal  beat_passed=None  offense=mild  deltas={'closeness': 0, 'respect': -6}
+  → beat: age  variant=None
+
+Turn 2: '잘 모르겠어요.'  beat=age
+  register=haeyo  beat_passed=False  offense=none  deltas={'closeness': 0, 'respect': 0}
+  → beat: cafeteria  variant=None  on_fail: she looks a little puzzled at the response; closeness -1
+
+Turn 3: '잘 모르겠어요.'  beat=cafeteria
+  register=haeyo  beat_passed=False  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: hook  variant=None  on_fail: Seo-yeon smiles and moves on without pressing; closeness -1
+
+Turn 4: '네, 알겠어요. 열심히 할게요.'  beat=hook
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → episode complete
+
+End: beats_reached=['greet', 'age', 'cafeteria', 'hook']  complete=True  final_beat=hook  variant=None
+
+PASS
+
+============================================================
+Path: s1e01/happy_path  max_turns_per_beat=1
+============================================================
+
+Turn 1: '안녕하세요, 선배님! 잘 부탁드려요.'  beat=greet
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 0, 'respect': 0}
+  → beat: age  variant=None
+
+Turn 2: '저는 2005년생이에요.'  beat=age
+  register=haeyo  beat_passed=True  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: cafeteria  variant=None
+
+Turn 3: '미국 뉴욕에서 왔어요.'  beat=cafeteria
+  register=haeyo  beat_passed=True  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: hook  variant=None
+
+Turn 4: '네, 감사합니다! 열심히 준비할게요.'  beat=hook
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → episode complete
+
+End: beats_reached=['greet', 'age', 'cafeteria', 'hook']  complete=True  final_beat=hook  variant=None
+
+PASS
+
+============================================================
+Path: s1e01/stuck_beginner  max_turns_per_beat=2
+============================================================
+
+Turn 1: '안녕하세요, 선배님!'  beat=greet
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 1, 'respect': 1}
+
+Turn 2: '잘 부탁드려요, 선배님.'  beat=greet
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: age  variant=None
+
+Turn 3: '잘 모르겠어요.'  beat=age
+  register=haeyo  beat_passed=False  offense=none  deltas={'closeness': 0, 'respect': 0}
+
+Turn 4: '어... 모르겠어요.'  beat=age
+  register=haeyo  beat_passed=False  offense=none  deltas={'closeness': 0, 'respect': 0}
+  → beat: cafeteria  variant=None  on_fail: she looks a little puzzled at the response; closeness -1
+
+Turn 5: '미국에서 왔어요.'  beat=cafeteria
+  register=haeyo  beat_passed=True  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: hook  variant=None
+
+Turn 6: '네, 감사합니다!'  beat=hook
+  register=hapsyo  beat_passed=None  offense=none  deltas={'closeness': 0, 'respect': 0}
+
+Turn 7: '네, 열심히 해볼게요.'  beat=hook
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → episode complete
+
+End: beats_reached=['greet', 'age', 'cafeteria', 'hook']  complete=True  final_beat=hook  variant=None
+
+PASS

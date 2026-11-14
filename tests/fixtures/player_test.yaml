@@ -1,0 +1,11 @@
+name: 한
+age: 21
+gender: male
+address_prefs:
+  ko: "한 씨"
+  ja: "ハンさん"
+level_ko: beginner
+level_ja: beginner
+support_level_ko: 2
+support_level_ja: 2
+relationship_speed: 1.0

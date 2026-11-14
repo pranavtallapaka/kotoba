@@ -14,7 +14,7 @@ HERE = Path(__file__).parent
 ROOT = HERE.parent
 SCHEMA = HERE / "schema.sql"
 CHARS_DIR = ROOT / "characters"
-PLAYER_YAML = ROOT / "player.yaml"
+PLAYER_YAML = Path(os.environ.get("KOTOBA_PLAYER_YAML", str(ROOT / "player.yaml")))
 
 
 def _db_path() -> Path:

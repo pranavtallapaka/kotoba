@@ -1,0 +1,27 @@
+episode: test_dummy
+path_name: happy_path
+# max_turns_per_beat: 1 makes non-pass_if beats advance after a single turn
+# so the test completes quickly without padding turns.
+max_turns_per_beat: 1
+
+turns:
+  - say: "안녕하세요, 선배님! 잘 부탁드려요."
+    expect:
+      beat: greet
+      register: haeyo
+
+  # introduce has pass_if: player mentions origin — this should pass it
+  - say: "저는 미국 캘리포니아에서 왔어요."
+    expect:
+      beat: introduce
+      register: haeyo
+      beat_passed: true
+
+  - say: "감사합니다, 선배님!"
+    expect:
+      beat: farewell
+      register: haeyo
+
+end_expect:
+  episode_complete: true
+  beats_reached: [greet, introduce, farewell]

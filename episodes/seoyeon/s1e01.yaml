@@ -21,7 +21,9 @@ beats:
       younger. When she learns she's two years older, she naturally settles
       into the 선배 role. Keep her reaction natural — a small smile, maybe
       a "그렇구나" — then confirm she'll look after you as your 선배님.
-    pass_if: player answers politely in 해요체 or better and mentions their birth year or age
+    pass_if:
+      content: player states their birth year or age
+      require_register_ok: true
     on_fail: she looks a little puzzled at the response; closeness -1
     beginner_frames:
       - korean: 저는 2000년생이에요.
@@ -35,7 +37,9 @@ beats:
       small talk and asks where you're from — country or city. Listen
       carefully to the answer; it's worth remembering. Keep the mood light
       and curious.
-    pass_if: player mentions their hometown, city, or country of origin
+    pass_if:
+      content: player mentions their hometown, city, or country of origin
+      require_register_ok: false
     on_fail: Seo-yeon smiles and moves on without pressing; closeness -1
     beginner_frames:
       - korean: 저는 미국에서 왔어요.

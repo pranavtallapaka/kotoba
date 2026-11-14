@@ -1,0 +1,30 @@
+episode: s1e01
+path_name: happy_path
+max_turns_per_beat: 1
+
+turns:
+  - say: "안녕하세요, 선배님! 잘 부탁드려요."
+    expect:
+      beat: greet
+      register: haeyo
+
+  - say: "저는 2005년생이에요."
+    expect:
+      beat: age
+      register: haeyo
+      beat_passed: true
+
+  - say: "미국 뉴욕에서 왔어요."
+    expect:
+      beat: cafeteria
+      register: haeyo
+      beat_passed: true
+
+  - say: "네, 감사합니다! 열심히 준비할게요."
+    expect:
+      beat: hook
+      register: haeyo
+
+end_expect:
+  episode_complete: true
+  beats_reached: [greet, age, cafeteria, hook]

@@ -16,7 +16,9 @@ beats:
   - id: introduce
     goal: >
       Seo-yeon asks where you're from. Tell her your hometown or country.
-    pass_if: player mentions their hometown, city, or country of origin
+    pass_if:
+      content: player mentions their hometown, city, or country of origin
+      require_register_ok: false
     on_fail: Seo-yeon changes the subject awkwardly; closeness -1
     beginner_frames:
       - korean: 저는 미국에서 왔어요.

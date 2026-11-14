@@ -138,11 +138,14 @@ def chat_json(
     think: bool = False,
     model: str = MODEL,
     num_predict: int | None = None,
+    seed: int | None = None,
 ) -> T:
     json_schema = _resolve_refs(schema.model_json_schema())
     options: dict = {"temperature": temperature}
     if num_predict is not None:
         options["num_predict"] = num_predict
+    if seed is not None:
+        options["seed"] = seed
     payload = {
         "model": model,
         "messages": messages,
