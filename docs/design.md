@@ -1,5 +1,7 @@
 # Voice Language Tool — Design Doc
 
+Landing page brief: docs/landing-page.md
+
 Exported Nov 13, 2026 from the shared design doc. The shared doc is the source of truth; re-export after big changes.
 
 ## Overview
