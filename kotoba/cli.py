@@ -530,6 +530,7 @@ def run(
     audio_dir: Path | None = None,
     debug: bool = False,
     episode_id: str | None = None,
+    subtitle: bool = False,
 ) -> None:
     init_db()
     session_id = start_session(char_id, episode_id=episode_id)
@@ -616,8 +617,8 @@ def run(
     session_slips: list[str] = []
     session_memories: list[str] = []
     quit_requested = False
-    show_subtitle = voice and support_ko <= 2
-    show_romanize = not voice and support_ko <= 2
+    show_subtitle = (voice and support_ko <= 2) or subtitle
+    show_romanize = not voice and not subtitle and support_ko <= 2
 
     mode_note = " | --voice active" if voice else ""
     if show_subtitle:
@@ -901,6 +902,7 @@ if __name__ == "__main__":
         help="SQLite database path (default: kotoba.db)",
     )
     parser.add_argument("--debug", action="store_true", help="print per-turn timing line")
+    parser.add_argument("--subtitle", action="store_true", help="show English translation after each reply")
     parser.add_argument(
         "--tts",
         choices=["say", "melo"],
@@ -951,4 +953,5 @@ if __name__ == "__main__":
         audio_dir=audio_dir,
         debug=args.debug,
         episode_id=args.episode,
+        subtitle=args.subtitle,
     )
