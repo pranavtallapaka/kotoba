@@ -145,6 +145,7 @@ def _do_turn(
     beat_variant: str | None = None,
     fail_note: str | None = None,
     romanize: bool = False,
+    other_chars: list[dict] | None = None,
 ) -> tuple[judge_module.JudgeResult, list[dict], str]:
     """Parallel judge + streaming reply/TTS. Returns (result, events, reply_text)."""
     t0 = time.perf_counter()
@@ -172,7 +173,8 @@ def _do_turn(
         _first_sentence_sent.wait()  # don't compete with the reply LLM call at t=0
         tj = time.perf_counter()
         _judge_result[0] = judge_module.judge(
-            text=user_input, character=char, state=state, history=history, beat=beat
+            text=user_input, character=char, state=state, history=history,
+            beat=beat, other_chars=other_chars,
         )
         _judge_ms[0] = int((time.perf_counter() - tj) * 1000)
         _events[:] = state_module.apply_turn(_judge_result[0], char_id, player)
@@ -544,11 +546,19 @@ def run(
     ep_progress: dict | None = None
     beat_turns: int = 0
     ep_fail_note: str | None = None
+    all_chars: dict[str, dict] = {char_id: char}
     if episode_id:
         episode = beats_mod.load_episode(episode_id)
         ep_progress = beats_mod.get_or_init_progress(episode_id, episode)
         beat_turns = ep_progress.get("turns_on_beat", 0)
         print(f"[에피소드: {episode.get('title', episode_id)}]")
+        # Pre-load all characters listed in the episode
+        for cid in episode.get("characters", []):
+            if cid not in all_chars:
+                p = CHARS_DIR / f"{cid}.yaml"
+                if p.exists():
+                    all_chars[cid] = yaml.safe_load(p.read_text())
+                    get_state(cid)  # ensure state row exists
 
     if audio_dir is not None:
         _run_batch(char_id, audio_dir, session_id, char, player, initial_state)
@@ -776,21 +786,28 @@ def run(
                 print(f"[Error] unknown variable '{var}' — use closeness, respect, or offense\n")
             continue
 
-        # --- Resolve current beat before the turn ---
+        # --- Resolve current beat and speaker before the turn ---
         beat: dict | None = None
         beat_variant: str | None = None
+        speaker_char_id = char_id
+        speaker_char = char
         if episode and ep_progress:
             beat = beats_mod.current_beat(ep_progress, episode)
             beat_variant = ep_progress.get("variant")
+            spk_id = beats_mod.get_beat_speaker(beat, episode) if beat else char_id
+            if spk_id and spk_id in all_chars:
+                speaker_char_id = spk_id
+                speaker_char = all_chars[spk_id]
             if beat and support_ko <= 1:
                 frames = beats_mod.format_beginner_frames(beat, support_ko)
                 if frames:
                     print(frames)
 
+        other_chars = [c for cid, c in all_chars.items() if cid != speaker_char_id]
         result, events, char_reply = _do_turn(
             user_input=user_input,
-            char_id=char_id,
-            char=char,
+            char_id=speaker_char_id,
+            char=speaker_char,
             player=player,
             history=history,
             session_id=session_id,
@@ -798,12 +815,13 @@ def run(
             session_memories=session_memories,
             stt_meta=stt_meta,
             show_subtitle=show_subtitle,
-            voice_id=char_voice_id if voice else "",
+            voice_id=speaker_char.get("voice_id", "") if voice else "",
             debug=debug,
             beat=beat,
             beat_variant=beat_variant,
             fail_note=ep_fail_note,
             romanize=show_romanize,
+            other_chars=other_chars or None,
         )
         ep_fail_note = None  # consumed this turn
         last_reply = char_reply

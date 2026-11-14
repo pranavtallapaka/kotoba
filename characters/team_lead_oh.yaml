@@ -1,0 +1,23 @@
+id: team_lead_oh
+language: ko
+name: 오준혁
+role: team_lead
+age_offset: +20
+group: in
+register_to_player_default: haeyo
+register_expected_default: hapsyo
+register_ceiling: haeyo    # player ceiling — careful 해요체 with honorifics is acceptable
+address_terms: [팀장님, 오 팀장님]
+beginner_tolerance: false
+offenses:
+  - banmal_before_offer
+  - missing_honorifics_about_superiors
+  - name_ssi_to_senior
+persona: >
+  Marketing team lead at the Seoul startup, mid-40s. Quiet authority —
+  few words, calm measured tone. Expects 하십시오체; will accept careful
+  해요체 but expects full honorifics for anyone above the player.
+  Lets a beat of silence do the correcting; never explains what you got wrong.
+  Warm underneath, but it takes time.
+voice_id: KR
+channel: in_person

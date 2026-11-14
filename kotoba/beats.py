@@ -55,6 +55,14 @@ def _beat_index(episode: dict, beat_id: str) -> int:
 # Progress
 # ---------------------------------------------------------------------------
 
+def get_beat_speaker(beat: dict | None, episode: dict) -> str:
+    """Return the character id speaking this beat. Defaults to episode's first character."""
+    if beat and beat.get("speaker"):
+        return beat["speaker"]
+    chars = episode.get("characters", [])
+    return chars[0] if chars else ""
+
+
 def get_or_init_progress(episode_id: str, episode: dict) -> dict:
     """Return progress from DB, initialising to the first beat if absent."""
     from kotoba import db

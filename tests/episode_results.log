@@ -79,3 +79,92 @@ Turn 7: '네, 열심히 해볼게요.'  beat=hook
 End: beats_reached=['greet', 'age', 'cafeteria', 'hook']  complete=True  final_beat=hook  variant=None
 
 PASS
+
+============================================================
+Path: s1e02/fail_path  max_turns_per_beat=1
+============================================================
+
+Turn 1: '네, 선배님.'  beat=reminder
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: report  variant=None
+
+Turn 2: '잘 모르겠어요.'  beat=report
+  register=haeyo  beat_passed=False  offense=none  deltas={'closeness': 0, 'respect': 0}
+  → beat: advice  variant=warm  on_fail: she covers for you, telling 오 팀장님 "제가 도와드리고 있어요"; respect -2
+
+Turn 3: '선배님, 감사해요. 정말 도움이 됐어요.'  beat=advice
+  register=haeyo  beat_passed=True  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: hook  variant=None
+
+Turn 4: '네, 갈게요! 금요일에 봬요, 선배님.'  beat=hook
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → episode complete
+
+End: beats_reached=['reminder', 'report', 'advice', 'hook']  complete=True  final_beat=hook  variant=None
+
+PASS
+
+============================================================
+Path: s1e02/happy_path  max_turns_per_beat=1
+============================================================
+
+Turn 1: '네, 선배님. 거의 다 됐어요.'  beat=reminder
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: report  variant=None
+
+Turn 2: '정말 죄송해요, 선배님. 오늘 오후까지 완성해서 제출하겠습니다.'  beat=report
+  register=haeyo  beat_passed=True  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: advice  variant=warm
+
+Turn 3: '선배님, 정말 감사해요. 앞으로 더 조심하겠습니다.'  beat=advice
+  register=haeyo  beat_passed=True  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: hook  variant=None
+
+Turn 4: '네! 금요일에 꼭 갈게요. 감사해요, 선배님.'  beat=hook
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → episode complete
+
+End: beats_reached=['reminder', 'report', 'advice', 'hook']  complete=True  final_beat=hook  variant=None
+
+PASS
+
+============================================================
+Path: test_dummy/fail_path  max_turns_per_beat=1
+============================================================
+
+Turn 1: '반가워.'  beat=greet
+  register=banmal  beat_passed=None  offense=mild  deltas={'closeness': 0, 'respect': -6}
+  → beat: introduce  variant=None
+
+Turn 2: '그냥 왔어요.'  beat=introduce
+  register=haeyo  beat_passed=False  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: farewell  variant=cool  on_fail: Seo-yeon changes the subject awkwardly; closeness -1
+
+Turn 3: '네, 알겠어요. 잘 부탁드려요.'  beat=farewell
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → episode complete
+
+End: beats_reached=['greet', 'introduce', 'farewell']  complete=True  final_beat=farewell  variant=None
+
+PASS
+
+============================================================
+Path: test_dummy/happy_path  max_turns_per_beat=1
+============================================================
+
+Turn 1: '안녕하세요, 선배님! 잘 부탁드려요.'  beat=greet
+  register=haeyo  beat_passed=None  offense=none  deltas={'closeness': 0, 'respect': 0}
+  → beat: introduce  variant=None
+
+Turn 2: '저는 미국 캘리포니아에서 왔어요.'  beat=introduce
+  register=haeyo  beat_passed=True  offense=none  deltas={'closeness': 1, 'respect': 1}
+  → beat: farewell  variant=warm
+
+Turn 3: '감사합니다, 선배님!'  beat=farewell
+  register=hapsyo  beat_passed=None  offense=none  deltas={'closeness': 0, 'respect': 0}
+  FAIL Turn 3: register expected='haeyo' actual='hapsyo'
+  → episode complete
+
+End: beats_reached=['greet', 'introduce', 'farewell']  complete=True  final_beat=farewell  variant=None
+
+FAIL (1 check(s))

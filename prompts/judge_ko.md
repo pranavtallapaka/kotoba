@@ -84,7 +84,7 @@ Note facts worth remembering. Each memory must be a JSON object with three field
 - `fact`: one concise English sentence stating the fact
 - `source_quote`: the exact substring from THIS player turn that reveals the fact
 
-CRITICAL: `about` = "user" only for facts from PLAYER lines. If the character said something about herself (e.g. "저 오늘 바빠요"), that is `about` = "seoyeon", NOT "user". Do NOT invent source_quotes from the character's lines for user memories.
+CRITICAL: `about` = "user" only for facts from PLAYER lines. If the character said something about herself (e.g. "저 오늘 바빠요"), that is `about` = "{char_about}", NOT "user". Do NOT invent source_quotes from the character's lines for user memories.
 
 ## Output fields — fill each one
 - `register_used`: "hapsyo", "haeyo", or "banmal"

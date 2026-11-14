@@ -17,7 +17,7 @@ turns:
       register: haeyo
       beat_passed: true
 
-  - say: "감사합니다, 선배님!"
+  - say: "감사해요, 선배님!"
     expect:
       beat: farewell
       register: haeyo

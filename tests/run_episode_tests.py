@@ -81,12 +81,20 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
     _reset_db()
 
     episode = beats_mod.load_episode(episode_id)
-    char_id = episode.get("characters", ["seoyeon"])[0]
     CHARS_DIR = ROOT / "characters"
-    char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
+    char_ids = episode.get("characters", ["seoyeon"])
+    chars: dict[str, dict] = {}
+    for cid in char_ids:
+        chars[cid] = yaml.safe_load((CHARS_DIR / f"{cid}.yaml").read_text())
+    char_id = char_ids[0]
+    char = chars[char_id]
     player = db.load_player()
 
-    # Apply state overrides
+    # Ensure state rows exist for all characters in the episode
+    for cid in char_ids:
+        db.get_state(cid)
+
+    # Apply state overrides (applied to primary character)
     if state_overrides:
         db.get_state(char_id)  # ensure row is created
         int_vars = {"closeness", "respect"}
@@ -122,10 +130,15 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
         if "beat" in expect and beat_id != expect["beat"]:
             _fail(f"Turn {i + 1}: beat expected={expect['beat']!r} actual={beat_id!r}")
 
-        state_before = db.get_state(char_id)
+        speaker_id = beats_mod.get_beat_speaker(beat, episode) if beat else char_id
+        speaker_char = chars.get(speaker_id, char)
+        other_chars = [c for cid, c in chars.items() if cid != speaker_id]
+
+        state_before = db.get_state(speaker_id)
 
         result = judge_mod.judge(
-            text=text, character=char, state=state_before, history=history, beat=beat
+            text=text, character=speaker_char, state=state_before,
+            history=history, beat=beat, other_chars=other_chars or None,
         )
 
         log.info(
@@ -133,8 +146,8 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
             f"  offense={result.offense}  deltas={result.state_deltas}"
         )
 
-        state_mod.apply_turn(result, char_id, player)
-        state_after = db.get_state(char_id)
+        state_mod.apply_turn(result, speaker_id, player)
+        state_after = db.get_state(speaker_id)
 
         # Keep history paired (placeholder assistant reply keeps judge context realistic)
         history.append({"role": "user", "content": text})
@@ -181,7 +194,7 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
                 if on_fail_note:
                     deltas = beats_mod.parse_on_fail_deltas(on_fail_note)
                     if deltas:
-                        db.update_state(char_id, **deltas)
+                        db.update_state(speaker_id, **deltas)
                 beat_turns = 0
 
                 new_beat = beats_mod.current_beat(ep_progress, episode)

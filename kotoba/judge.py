@@ -17,6 +17,7 @@ import yaml
 from pydantic import BaseModel, model_validator
 
 from kotoba import llm
+from kotoba import honorific_ko
 from kotoba import validator_ko
 from kotoba.config import JUDGE_MODEL
 
@@ -41,7 +42,7 @@ class GrammarError(BaseModel):
 
 
 class MemoryItem(BaseModel):
-    about: Literal["user", "seoyeon"]
+    about: str           # "user" or the character's id (e.g. "seoyeon", "team_lead_oh")
     fact: str
     source_quote: str  # exact substring from the turn that reveals this fact
 
@@ -62,6 +63,10 @@ class JudgeResult(BaseModel):
     reason: str
 
     # Computed post-LLM; not sent to the model.
+    # Honorific rule check (honorific_ko.check result).
+    honorific_subject: str = ""
+    honorific_subject_is_senior: bool = False
+    honorific_verb_ok: bool = True
     beat_passed: bool | None = None
     validator_register: Literal["hapsyo", "haeyo", "banmal", "unknown"] | None = None
     validator_confidence: Literal["high", "medium", "low"] | None = None
@@ -69,11 +74,16 @@ class JudgeResult(BaseModel):
 
     @classmethod
     def model_json_schema(cls, **kwargs) -> dict:
+        _computed = frozenset({
+            "beat_passed", "validator_register", "validator_confidence", "validator_override",
+            "honorific_subject", "honorific_subject_is_senior", "honorific_verb_ok",
+        })
         schema = super().model_json_schema(**kwargs)
-        # beat_passed is computed post-LLM; keep it off the schema sent to Ollama
-        schema.get("properties", {}).pop("beat_passed", None)
+        props = schema.get("properties", {})
+        for f in _computed:
+            props.pop(f, None)
         if "required" in schema:
-            schema["required"] = [f for f in schema["required"] if f != "beat_passed"]
+            schema["required"] = [f for f in schema["required"] if f not in _computed]
         return schema
 
     @model_validator(mode="after")
@@ -161,6 +171,7 @@ def judge(
     state: dict,
     history: list[dict],
     beat: dict | None = None,
+    other_chars: list[dict] | None = None,
 ) -> JudgeResult:
     """Score one player turn and return a JudgeResult."""
     char_name = character.get("name", "CHARACTER")
@@ -169,6 +180,7 @@ def judge(
         "state_facts": _format_state_facts(state),
         "history": _format_history(history, char_name),
         "beat_context": _format_beat(beat),
+        "char_about": character.get("id", "character"),
     }
     template = TEMPLATE.read_text()
     system_prompt = template
@@ -229,6 +241,36 @@ def judge(
             result.repair_required = False
             if result.state_deltas.get("respect", 0) < 0:
                 result.state_deltas["respect"] = 0
+
+    # --- Honorific rule check (overrides judge when high-confidence) ---
+    extra_seniors: set[str] = set()
+    for c in [character] + (other_chars or []):
+        if any(k in c.get("role", "") for k in ("lead", "senior", "teacher", "boss", "president")):
+            name = c.get("name", "")
+            if name:
+                extra_seniors.add(name)
+                if len(name) >= 2:
+                    extra_seniors.add(name[-2:])
+
+    hon = honorific_ko.check(text, frozenset(extra_seniors) if extra_seniors else None)
+    result.honorific_subject = hon.subject
+    result.honorific_subject_is_senior = hon.subject_is_senior
+    result.honorific_verb_ok = hon.verb_has_honorific
+
+    if (
+        hon.confidence == "high"
+        and hon.subject_is_senior
+        and not hon.verb_has_honorific
+        and "missing_honorifics_about_superiors" in character.get("offenses", [])
+        and "missing_honorifics_about_superiors" not in result.offense_ids
+    ):
+        result.offense_ids.append("missing_honorifics_about_superiors")
+        if result.offense == "none":
+            result.offense = "mild"
+        if result.state_deltas.get("respect", 0) > -4:
+            result.state_deltas["respect"] = -4
+        if not result.honorific_errors:
+            result.honorific_errors.append(f"{hon.subject} → -(으)시- 필요")
 
     # Compute beat_passed from content_met + optional register check.
     # content_evidence must appear verbatim in the player turn; if the LLM
