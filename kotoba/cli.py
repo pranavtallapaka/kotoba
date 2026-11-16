@@ -12,6 +12,7 @@ Commands during a session:
   /goto <beat_id>  jump to a specific beat (episode mode)
   /set <var> <val> set a state variable, e.g. /set closeness 70
   /reset <char_id> restore character to default state (for testing)
+  /episodes        list all episodes with their status
   /quit            end the session
 """
 import os
@@ -31,8 +32,10 @@ from kotoba.db import (
     end_session,
     get_state,
     init_db,
+    list_episodes,
     load_player,
     log_turn,
+    set_session_summary,
     start_session,
     update_state,
 )
@@ -621,6 +624,14 @@ def run(
     hapsyo_streak: int = 0
     completed_beat_goals: list[str] = []
     pending_opener: bool = bool(episode)  # trigger opener generation on first beat
+    in_repair: bool = False
+    repair_lost_respect: int = 0
+    repair_char_id: str = ""
+    repair_offense_desc: str = ""
+    beats_passed_ids: list[str] = []
+    beats_failed_ids: list[str] = []
+    milestones_hit: list[str] = []
+    episode_summary: str = ""
     quit_requested = False
     show_subtitle = (voice and support_ko <= 2) or subtitle
     show_romanize = not voice and not subtitle and support_ko <= 2
@@ -845,6 +856,18 @@ def run(
             print(f"[Reset] {target_char_name} restored to default state\n")
             continue
 
+        if user_input == "/episodes":
+            rows = list_episodes()
+            if not rows:
+                print("[No episodes started yet]\n")
+            else:
+                for row in rows:
+                    status = row.get("status", "active")
+                    beat = row.get("current_beat") or "—"
+                    print(f"  {row['episode_id']:<20} {status:<10} beat: {beat}")
+                print()
+            continue
+
         # --- Resolve current beat and speaker before the turn ---
         beat: dict | None = None
         beat_variant: str | None = None
@@ -863,6 +886,9 @@ def run(
                     print(frames)
 
         other_chars = [c for cid, c in all_chars.items() if cid != speaker_char_id]
+        state_before_turn = get_state(speaker_char_id)
+        was_in_repair = in_repair
+
         result, events, char_reply = _do_turn(
             user_input=user_input,
             char_id=speaker_char_id,
@@ -903,16 +929,59 @@ def run(
 
         for _ev in events:
             if _ev.get("variable") == "milestone":
+                mid = _ev.get("id", _ev.get("message", ""))
+                if mid and mid not in milestones_hit:
+                    milestones_hit.append(mid)
                 print(f"\n{_ev['message']}")
+
+        # --- Repair state machine ---
+        if was_in_repair:
+            repair_char = all_chars.get(repair_char_id, char)
+            repair_state = get_state(repair_char_id)
+            repair_result = judge_module.judge_repair(
+                text=user_input,
+                offense_description=repair_offense_desc,
+                register_expected=repair_state["register_expected"],
+                char_name=repair_char.get("name", repair_char_id),
+                history=history,
+            )
+            result.repair_ok = repair_result.repair_ok
+            result.repair_evidence = repair_result.repair_evidence
+            if repair_result.repair_ok:
+                half_back = max(1, repair_lost_respect // 2)
+                new_respect = min(100, repair_state["respect"] + half_back)
+                update_state(repair_char_id, respect=new_respect, offense="none")
+                in_repair = False
+                repair_lost_respect = 0
+                repair_char_id = ""
+                repair_offense_desc = ""
+                print(f"[Repair accepted: +{half_back} respect]\n")
+            else:
+                print(f"[Repair needed: {repair_result.reason}]\n")
+        elif result.repair_required and result.offense == "serious":
+            post_state = get_state(speaker_char_id)
+            repair_lost_respect = max(0, state_before_turn["respect"] - post_state["respect"])
+            in_repair = True
+            repair_char_id = speaker_char_id
+            repair_offense_desc = result.reason
+            print("[Repair required: apologize or rephrase at 해요체/하십시오체 to continue]\n")
 
         # --- Beat runner: advance if pass_if met or turn cap reached ---
         if episode and ep_progress and beat:
-            beat_turns += 1
+            if not was_in_repair:
+                beat_turns += 1
             # completes_on: character — treat as passed on any player turn
             effective_beat_passed = result.beat_passed
             if beats_mod.get_completes_on(beat) == "character" and not beat.get("pass_if"):
                 effective_beat_passed = True
-            if beats_mod.should_advance(beat_turns, effective_beat_passed):
+            # Advance only if not in repair mode (before or after this turn)
+            if not in_repair and not was_in_repair and beats_mod.should_advance(beat_turns, effective_beat_passed):
+                if effective_beat_passed:
+                    if beat["id"] not in beats_passed_ids:
+                        beats_passed_ids.append(beat["id"])
+                else:
+                    if beat["id"] not in beats_failed_ids:
+                        beats_failed_ids.append(beat["id"])
                 goal_summary = beat.get("goal", "").split("\n")[0][:60].strip()
                 if goal_summary and goal_summary not in completed_beat_goals:
                     completed_beat_goals.append(goal_summary)
@@ -935,16 +1004,38 @@ def run(
                     else:
                         print(f"\n[→ beat: {new_beat['id']}]\n")
                 else:
-                    print("\n[에피소드 완료! 계속 대화하거나 /quit으로 종료하세요.]\n")
+                    # Episode complete — generate summary
+                    final_ep_state = get_state(char_id)
+                    ep_title = episode.get("title", episode_id)
+                    hook_text = completed_beat_goals[-1] if completed_beat_goals else ""
+                    print("[Generating episode summary…]", flush=True)
+                    episode_summary = summaries.generate_episode_summary(
+                        episode_title=ep_title,
+                        beats_passed=beats_passed_ids,
+                        beats_failed=beats_failed_ids,
+                        milestones=milestones_hit,
+                        slips=session_slips,
+                        hook_text=hook_text,
+                        validated_memories=session_memories,
+                        initial_state=initial_state,
+                        final_state=final_ep_state,
+                        char_name=char_name,
+                    )
+                    set_session_summary(session_id, episode_summary)
+                    print(f"\n[에피소드 완료!]\n")
+                    print(f"[Episode Summary]\n{episode_summary}\n")
 
     if quit_requested and history:
-        print("[Generating session summary…]", flush=True)
-        final_state = get_state(char_id)
-        summary = summaries.generate(
-            history, session_slips, session_memories, initial_state, final_state
-        )
-        end_session(session_id, summary=summary)
-        print(f"\n[Session Summary]\n{summary}\n")
+        if episode_summary:
+            end_session(session_id)
+        else:
+            print("[Generating session summary…]", flush=True)
+            final_state = get_state(char_id)
+            summary = summaries.generate(
+                history, session_slips, session_memories, initial_state, final_state
+            )
+            end_session(session_id, summary=summary)
+            print(f"\n[Session Summary]\n{summary}\n")
     else:
         end_session(session_id)
     print("\n[세션 종료]")

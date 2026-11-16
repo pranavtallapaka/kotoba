@@ -109,6 +109,10 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
     history: list[dict] = []
     beats_reached: list[str] = []
     hapsyo_streak: int = 0
+    in_repair: bool = False
+    repair_lost_respect: int = 0
+    repair_char_id: str = ""
+    repair_offense_desc: str = ""
     failures: list[str] = []
 
     def _fail(msg: str) -> None:
@@ -136,6 +140,7 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
         other_chars = [c for cid, c in chars.items() if cid != speaker_id]
 
         state_before = db.get_state(speaker_id)
+        was_in_repair = in_repair
 
         result = judge_mod.judge(
             text=text, character=speaker_char, state=state_before,
@@ -145,6 +150,7 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
         log.info(
             f"  register={result.register_used}  beat_passed={result.beat_passed}"
             f"  offense={result.offense}  deltas={result.state_deltas}"
+            + (f"  repair_required={result.repair_required}" if result.repair_required else "")
         )
 
         state_mod.apply_turn(result, speaker_id, player)
@@ -163,6 +169,37 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
         # Keep history paired (placeholder assistant reply keeps judge context realistic)
         history.append({"role": "user", "content": text})
         history.append({"role": "assistant", "content": "..."})
+
+        # --- Repair state machine ---
+        if was_in_repair:
+            repair_char_yaml = yaml.safe_load((ROOT / "characters" / f"{repair_char_id}.yaml").read_text())
+            repair_state = db.get_state(repair_char_id)
+            repair_result = judge_mod.judge_repair(
+                text=text,
+                offense_description=repair_offense_desc,
+                register_expected=repair_state["register_expected"],
+                char_name=repair_char_yaml.get("name", repair_char_id),
+                history=history,
+            )
+            result.repair_ok = repair_result.repair_ok
+            result.repair_evidence = repair_result.repair_evidence
+            log.info(f"  repair_ok={repair_result.repair_ok}  reason={repair_result.reason!r}")
+            if repair_result.repair_ok:
+                half_back = max(1, repair_lost_respect // 2)
+                new_respect = min(100, repair_state["respect"] + half_back)
+                db.update_state(repair_char_id, respect=new_respect, offense="none")
+                in_repair = False
+                repair_lost_respect = 0
+                repair_char_id = ""
+                repair_offense_desc = ""
+                state_after = db.get_state(speaker_id)
+                log.info(f"  repair accepted: +{half_back} respect")
+        elif result.repair_required and result.offense == "serious":
+            post_state = db.get_state(speaker_id)
+            repair_lost_respect = max(0, state_before["respect"] - post_state["respect"])
+            in_repair = True
+            repair_char_id = speaker_id
+            repair_offense_desc = result.reason
 
         # --- Per-turn expectation checks ---
 
@@ -184,6 +221,18 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
                 f" actual={result.offense!r}"
             )
 
+        if "repair_required" in expect and result.repair_required != expect["repair_required"]:
+            _fail(
+                f"Turn {i + 1}: repair_required expected={expect['repair_required']}"
+                f" actual={result.repair_required}"
+            )
+
+        if "repair_ok" in expect and result.repair_ok != expect["repair_ok"]:
+            _fail(
+                f"Turn {i + 1}: repair_ok expected={expect['repair_ok']}"
+                f" actual={result.repair_ok}"
+            )
+
         for var in ("respect", "closeness"):
             key = f"{var}_change"
             if key in expect:
@@ -197,12 +246,13 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
 
         # --- Beat advancement ---
         if beat:
-            beat_turns += 1
+            if not was_in_repair:
+                beat_turns += 1
             # completes_on: character — treat as passed on any player turn
             effective_beat_passed = result.beat_passed
             if beats_mod.get_completes_on(beat) == "character" and not beat.get("pass_if"):
                 effective_beat_passed = True
-            if beats_mod.should_advance(beat_turns, effective_beat_passed, max_turns):
+            if not in_repair and not was_in_repair and beats_mod.should_advance(beat_turns, effective_beat_passed, max_turns):
                 ep_progress, on_fail_note = beats_mod.advance(
                     episode_id, episode, ep_progress, state_after, effective_beat_passed
                 )

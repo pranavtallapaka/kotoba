@@ -221,6 +221,17 @@ def end_session(session_id: int, summary: str | None = None) -> None:
     conn.close()
 
 
+def set_session_summary(session_id: int, summary: str) -> None:
+    """Update the summary for a session without touching ended_at."""
+    conn = _connect()
+    conn.execute(
+        "UPDATE sessions SET summary = ? WHERE id = ?",
+        (summary, session_id),
+    )
+    conn.commit()
+    conn.close()
+
+
 def log_turn(
     session_id: int,
     user_text_raw: str,
@@ -311,6 +322,16 @@ def get_progress(episode_id: str) -> dict | None:
     ).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+def list_episodes() -> list[dict]:
+    """Return all episode_progress rows ordered by episode_id."""
+    conn = _connect()
+    rows = conn.execute(
+        "SELECT * FROM episode_progress ORDER BY episode_id"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def count_episodes_done() -> int:

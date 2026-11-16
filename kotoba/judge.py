@@ -63,7 +63,6 @@ class JudgeResult(BaseModel):
     reason: str
 
     # Computed post-LLM; not sent to the model.
-    # Honorific rule check (honorific_ko.check result).
     honorific_subject: str = ""
     honorific_subject_is_senior: bool = False
     honorific_verb_ok: bool = True
@@ -71,12 +70,16 @@ class JudgeResult(BaseModel):
     validator_register: Literal["hapsyo", "haeyo", "banmal", "unknown"] | None = None
     validator_confidence: Literal["high", "medium", "low"] | None = None
     validator_override: bool = False
+    # Set by judge_repair() on repair turns.
+    repair_ok: bool | None = None
+    repair_evidence: str = ""
 
     @classmethod
     def model_json_schema(cls, **kwargs) -> dict:
         _computed = frozenset({
             "beat_passed", "validator_register", "validator_confidence", "validator_override",
             "honorific_subject", "honorific_subject_is_senior", "honorific_verb_ok",
+            "repair_ok", "repair_evidence",
         })
         schema = super().model_json_schema(**kwargs)
         props = schema.get("properties", {})
@@ -279,6 +282,79 @@ def judge(
 
     return result
 
+
+# ---------------------------------------------------------------------------
+# Repair judge
+# ---------------------------------------------------------------------------
+
+class RepairResult(BaseModel):
+    repair_ok: bool
+    repair_evidence: str  # exact substring from player's turn; "" if repair_ok false
+    reason: str
+
+
+_REPAIR_SYSTEM = """\
+You are a Korean repair judge. A player committed a serious offense and must now repair it.
+
+A VALID repair satisfies AT LEAST ONE of:
+1. An apology in 해요체 or 하십시오체: words like 죄송합니다, 죄송해요, 미안합니다, 미안해요, 실례했습니다
+2. Rephrasing the offending utterance at the correct register (haeyo or hapsyo), addressing the same situation
+
+INVALID:
+- Any 반말 endings in the response → repair_ok = false
+- Changing the subject without addressing the offense → repair_ok = false
+- Vague fillers (괜찮아요, 아니에요, 네 alone) with no apology → repair_ok = false
+
+Offense: {offense_description}
+Expected register: {register_expected}
+Character who was offended: {char_name}
+
+Recent conversation:
+{history}
+
+Return JSON:
+- repair_ok: true if the response is a valid repair, false otherwise
+- repair_evidence: exact substring from the player's turn showing the apology or rephrasing; "" if repair_ok is false
+- reason: one concise sentence explaining the verdict\
+"""
+
+
+def judge_repair(
+    text: str,
+    offense_description: str,
+    register_expected: str,
+    char_name: str,
+    history: list[dict],
+) -> RepairResult:
+    """Check whether a player turn successfully repairs a prior serious offense."""
+    tail = history[-4:]
+    char_label = char_name.upper() if char_name else "CHARACTER"
+    history_lines = [
+        ("PLAYER" if m["role"] == "user" else char_label) + ": " + m["content"]
+        for m in tail
+    ]
+    prompt = (
+        _REPAIR_SYSTEM
+        .replace("{offense_description}", offense_description)
+        .replace("{register_expected}", register_expected)
+        .replace("{char_name}", char_name)
+        .replace("{history}", "\n".join(history_lines) or "(start of conversation)")
+    )
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": f'Player repair attempt: "{text}"'},
+    ]
+    return llm.chat_json(
+        messages, RepairResult,
+        temperature=0.0 if _TEST_MODE else 0.1,
+        num_predict=150, model=JUDGE_MODEL,
+        seed=42 if _TEST_MODE else None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Deflection guard (used by _compute_beat_passed)
+# ---------------------------------------------------------------------------
 
 # Deflection phrases that can never satisfy a factual content_condition.
 _DEFLECTION_RE = re.compile(r"모르겠어요|모르겠습니다|몰라요|모르겠는데|모르겠어")

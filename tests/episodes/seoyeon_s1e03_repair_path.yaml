@@ -1,0 +1,42 @@
+episode: s1e03
+path_name: repair_path
+# arrive has no pass_if → advances on cap (2 turns)
+# pour: offense turn + repair turn (not counted) + pass turn
+max_turns_per_beat: 2
+
+turns:
+  # arrive (seoyeon) turn 1
+  - say: "네, 감사해요, 선배님."
+    expect:
+      beat: arrive
+      register: haeyo
+
+  # arrive turn 2 — cap reached, beat advances
+  - say: "알겠습니다, 선배님."
+    expect:
+      beat: arrive
+      register: haeyo
+
+  # pour (team_lead_oh): banmal to 오 팀장 → serious offense, repair required
+  - say: "야, 술이나 한 잔 줘봐."
+    expect:
+      beat: pour
+      offense: serious
+      repair_required: true
+
+  # repair turn: polite apology (not counted toward beat turns)
+  - say: "죄송합니다, 팀장님. 제가 실수했어요."
+    expect:
+      beat: pour
+      repair_ok: true
+
+  # pour beat resumes: proper offer (beat_turns=1, beat_passed=true → advance)
+  - say: "팀장님, 제가 따라 드릴까요?"
+    expect:
+      beat: pour
+      register: haeyo
+      beat_passed: true
+
+end_expect:
+  episode_complete: false
+  beats_reached: [arrive, pour, question]
