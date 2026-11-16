@@ -4,6 +4,9 @@ characters: [seoyeon]
 
 beats:
   - id: reminder
+    opener: character
+    scene_caption: "Mid-morning. Seo-yeon swings by your desk with a look of mild concern."
+    completes_on: player
     goal: >
       Mid-morning. Seo-yeon swings by your desk with a look of mild concern
       and reminds you that a report was due today. She asks how it's going —
@@ -16,6 +19,8 @@ beats:
         gloss: Oh, right! I'm working hard on it.
 
   - id: report
+    opener: character
+    completes_on: player
     goal: >
       Seo-yeon relays a question from 오 팀장님 (offscreen): he wants to know
       where the report is. The player must apologize for the delay or give a
@@ -32,6 +37,9 @@ beats:
         gloss: I need a little more time. I'll finish it as fast as I can.
 
   - id: advice
+    opener: character
+    scene_caption: "Seo-yeon pulls you aside."
+    completes_on: player
     goal: >
       After handling 오 팀장님, Seo-yeon pulls you aside and gives you advice
       about keeping on top of deadlines. She's warm if she didn't have to
@@ -50,6 +58,9 @@ beats:
         gloss: Thank you so much for your help, 선배님.
 
   - id: hook
+    opener: character
+    scene_caption: "Back at her desk, she smiles."
+    completes_on: character
     goal: >
       Seo-yeon smiles and mentions that the team is having a 회식 (team dinner)
       on Friday evening. She asks if you can make it — a good chance to get to

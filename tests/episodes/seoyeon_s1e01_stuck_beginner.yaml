@@ -39,16 +39,11 @@ turns:
       register: haeyo
       beat_passed: true
 
+  # hook: completes_on=character — beat_passed is forced True, advances after 1 turn
   - say: "네, 감사합니다!"
     expect:
       beat: hook
       register: hapsyo
-
-  # hook turn 2 — beat_turns=2 >= max_turns=2, hook advances → episode complete
-  - say: "네, 열심히 해볼게요."
-    expect:
-      beat: hook
-      register: haeyo
 
 end_expect:
   episode_complete: true

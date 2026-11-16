@@ -4,6 +4,9 @@ characters: [seoyeon]
 
 beats:
   - id: greet
+    opener: character
+    scene_caption: "Monday morning. Seo-yeon walks to your desk."
+    completes_on: player
     goal: >
       It's your first morning at the company. Seo-yeon comes to your desk,
       introduces herself warmly in 해요체, and welcomes you to the team.
@@ -16,6 +19,8 @@ beats:
         gloss: Hello, 선배님! Please take care of me.
 
   - id: age
+    opener: character
+    completes_on: player
     goal: >
       Seo-yeon asks 몇 년생이에요? She wants to know if you're older or
       younger. When she learns she's two years older, she naturally settles
@@ -32,6 +37,9 @@ beats:
         gloss: I was born in 1999, 선배님.
 
   - id: cafeteria
+    opener: character
+    scene_caption: "She offers to show you around and walks you to the cafeteria."
+    completes_on: player
     goal: >
       Seo-yeon walks you to the cafeteria to show you around. She makes
       small talk and asks where you're from — country or city. Listen
@@ -48,6 +56,9 @@ beats:
         gloss: I'm from California, 선배님.
 
   - id: hook
+    opener: character
+    scene_caption: "Back at your desk."
+    completes_on: character
     goal: >
       Back at the desk, Seo-yeon mentions that tomorrow morning there's a
       team meeting with 오 팀장님. She tells you not to be nervous — just

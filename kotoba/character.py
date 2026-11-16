@@ -88,6 +88,16 @@ def _behavior_note(state: dict, repeat_slip: bool = False) -> str:
     return " ".join(parts)
 
 
+def _self_reference_check(text: str, name: str) -> bool:
+    """True if the character refers to herself by name in subject/topic position."""
+    given = name[-2:] if len(name) >= 3 else name
+    # Match name or given name + subject/topic marker; exclude -이에요/-이야 (predicates)
+    pat = re.compile(
+        rf'(?:{re.escape(name)}|{re.escape(given)})[이가은는도](?![에예야])'
+    )
+    return bool(pat.search(text))
+
+
 def build_prompt(
     char_id: str,
     user_text: str = "",
@@ -98,6 +108,8 @@ def build_prompt(
     beat_variant: str | None = None,
     fail_note: str | None = None,
     romanize: bool = False,
+    completed_beats: list[str] | None = None,
+    is_opener: bool = False,
 ) -> str:
     char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
     state = get_state(char_id)
@@ -137,7 +149,8 @@ def build_prompt(
     if beat:
         from kotoba import beats as beats_mod
         result += "\n\n" + beats_mod.format_beat_for_character(
-            beat, variant=beat_variant, fail_note=fail_note
+            beat, variant=beat_variant, fail_note=fail_note,
+            completed_beats=completed_beats, is_opener=is_opener,
         )
     if voice:
         result += "\n\nUse at most one emoji, placed at the end of your reply, never in the middle of a sentence."
@@ -161,19 +174,31 @@ def reply(
     char_id: str,
     subtitle: bool = False,
     repeat_slip: bool = False,
+    completed_beats: list[str] | None = None,
 ) -> str | tuple[str, str]:
     """Generate a character reply.
 
     subtitle=True: returns (korean, english) in one LLM call — no extra latency.
     subtitle=False: returns the Korean string (default, backward-compatible).
     """
-    system_prompt = build_prompt(char_id, user_text, repeat_slip=repeat_slip, subtitle=subtitle)
+    char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
+    char_name = char.get("name", "")
+
+    system_prompt = build_prompt(
+        char_id, user_text, repeat_slip=repeat_slip, subtitle=subtitle,
+        completed_beats=completed_beats,
+    )
     messages = (
         [{"role": "system", "content": system_prompt}]
         + history
         + [{"role": "user", "content": user_text}]
     )
     raw = llm.chat(messages, temperature=0.8, model=CHARACTER_MODEL)
+
+    # Regenerate once if the reply contains the character's own name as a subject.
+    if char_name and _self_reference_check(raw, char_name):
+        raw = llm.chat(messages, temperature=0.8, model=CHARACTER_MODEL)
+
     if subtitle:
         if "\nEN: " in raw:
             korean, english = raw.split("\nEN: ", 1)
@@ -196,3 +221,31 @@ def reply_stream(
         + [{"role": "user", "content": user_text}]
     )
     return llm.chat_stream(messages, temperature=0.8, model=CHARACTER_MODEL)
+
+
+def generate_opener(
+    history: list[dict],
+    char_id: str,
+    beat: dict,
+    beat_variant: str | None = None,
+    completed_beats: list[str] | None = None,
+) -> str:
+    """Generate the character's opening line when she speaks first on a new beat."""
+    char = yaml.safe_load((CHARS_DIR / f"{char_id}.yaml").read_text())
+    char_name = char.get("name", "")
+    system_prompt = build_prompt(
+        char_id,
+        beat=beat,
+        beat_variant=beat_variant,
+        completed_beats=completed_beats,
+        is_opener=True,
+    )
+    messages = (
+        [{"role": "system", "content": system_prompt}]
+        + history
+        + [{"role": "user", "content": "[scene start]"}]
+    )
+    raw = llm.chat(messages, temperature=0.8, model=CHARACTER_MODEL)
+    if char_name and _self_reference_check(raw, char_name):
+        raw = llm.chat(messages, temperature=0.8, model=CHARACTER_MODEL)
+    return raw.strip()

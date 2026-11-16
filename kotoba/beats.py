@@ -167,13 +167,49 @@ def goto_beat(episode_id: str, episode: dict, beat_id: str, state: dict) -> dict
 # Prompt helpers
 # ---------------------------------------------------------------------------
 
+def get_opener(beat: dict) -> str:
+    """Who speaks first on this beat: 'character' (default) or 'player'."""
+    return beat.get("opener", "character")
+
+
+def get_completes_on(beat: dict) -> str:
+    """What triggers beat completion: 'player' (default) or 'character'."""
+    return beat.get("completes_on", "player")
+
+
+def get_scene_caption(beat: dict) -> str | None:
+    """Short English stage-direction shown before the opener, or None."""
+    return beat.get("scene_caption") or None
+
+
 def format_beat_for_character(
     beat: dict,
     variant: str | None = None,
     fail_note: str | None = None,
+    completed_beats: list[str] | None = None,
+    is_opener: bool = False,
 ) -> str:
     """Return a '## Current scene' section to append to the character prompt."""
-    lines = ["## Current scene", beat.get("goal", "")]
+    goal = beat.get("goal", "").strip()
+    if is_opener:
+        instruction = (
+            "Deliver your opening line for this scene. "
+            "Keep it to 1–2 sentences — natural, unforced. "
+            "Scene context:\n" + goal
+        )
+    else:
+        instruction = (
+            "Respond naturally to what 한 씨 says, then steer the conversation "
+            "toward the scene goal within 1–2 turns. Don't wait for 한 씨 to bring it up.\n"
+            "Scene goal:\n" + goal
+        )
+    lines = ["## Current scene", instruction]
+    if completed_beats:
+        done = "; ".join(completed_beats)
+        lines.append(
+            f"(Already done in this episode: {done}. "
+            "Don't bring these moments up again or repeat them.)"
+        )
     if variant:
         lines.append(f"(Your mood/reaction: {variant})")
     if fail_note:

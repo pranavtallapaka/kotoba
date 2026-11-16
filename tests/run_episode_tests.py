@@ -108,6 +108,7 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
     beat_turns = 0
     history: list[dict] = []
     beats_reached: list[str] = []
+    hapsyo_streak: int = 0
     failures: list[str] = []
 
     def _fail(msg: str) -> None:
@@ -149,6 +150,16 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
         state_mod.apply_turn(result, speaker_id, player)
         state_after = db.get_state(speaker_id)
 
+        # hapsyo_stiff: respect -2 when 2+ consecutive hapsyo turns at high closeness
+        if result.register_used == "hapsyo":
+            hapsyo_streak += 1
+        else:
+            hapsyo_streak = 0
+        if hapsyo_streak >= 2 and state_after["closeness"] >= 50:
+            db.update_state(speaker_id, respect=max(0, state_after["respect"] - 2))
+            log.info("  hapsyo_stiff applied: respect -2")
+            state_after = db.get_state(speaker_id)
+
         # Keep history paired (placeholder assistant reply keeps judge context realistic)
         history.append({"role": "user", "content": text})
         history.append({"role": "assistant", "content": "..."})
@@ -187,9 +198,13 @@ def run_path(script: dict, state_overrides: dict[str, str]) -> tuple[bool, str]:
         # --- Beat advancement ---
         if beat:
             beat_turns += 1
-            if beats_mod.should_advance(beat_turns, result.beat_passed, max_turns):
+            # completes_on: character — treat as passed on any player turn
+            effective_beat_passed = result.beat_passed
+            if beats_mod.get_completes_on(beat) == "character" and not beat.get("pass_if"):
+                effective_beat_passed = True
+            if beats_mod.should_advance(beat_turns, effective_beat_passed, max_turns):
                 ep_progress, on_fail_note = beats_mod.advance(
-                    episode_id, episode, ep_progress, state_after, result.beat_passed
+                    episode_id, episode, ep_progress, state_after, effective_beat_passed
                 )
                 if on_fail_note:
                     deltas = beats_mod.parse_on_fail_deltas(on_fail_note)

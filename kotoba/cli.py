@@ -11,6 +11,7 @@ Commands during a session:
   /next            skip to next beat (episode mode)
   /goto <beat_id>  jump to a specific beat (episode mode)
   /set <var> <val> set a state variable, e.g. /set closeness 70
+  /reset <char_id> restore character to default state (for testing)
   /quit            end the session
 """
 import os
@@ -146,6 +147,7 @@ def _do_turn(
     fail_note: str | None = None,
     romanize: bool = False,
     other_chars: list[dict] | None = None,
+    completed_beats: list[str] | None = None,
 ) -> tuple[judge_module.JudgeResult, list[dict], str]:
     """Parallel judge + streaming reply/TTS. Returns (result, events, reply_text)."""
     t0 = time.perf_counter()
@@ -159,7 +161,7 @@ def _do_turn(
     system_prompt = character.build_prompt(
         char_id, user_input, repeat_slip=repeat_slip, voice=bool(voice_id),
         beat=beat, beat_variant=beat_variant, fail_note=fail_note,
-        romanize=romanize,
+        romanize=romanize, completed_beats=completed_beats,
     )
 
     # --- Thread A: judge — starts only after reply's first sentence is queued for TTS ---
@@ -202,7 +204,7 @@ def _do_turn(
             prompt_to_use = character.build_prompt(
                 char_id, user_input, repeat_slip=repeat_slip, subtitle=True, voice=bool(voice_id),
                 beat=beat, beat_variant=beat_variant, fail_note=fail_note,
-                romanize=romanize,
+                romanize=romanize, completed_beats=completed_beats,
             )
         else:
             prompt_to_use = system_prompt
@@ -616,6 +618,9 @@ def run(
     last_events: list[dict] = []
     session_slips: list[str] = []
     session_memories: list[str] = []
+    hapsyo_streak: int = 0
+    completed_beat_goals: list[str] = []
+    pending_opener: bool = bool(episode)  # trigger opener generation on first beat
     quit_requested = False
     show_subtitle = (voice and support_ko <= 2) or subtitle
     show_romanize = not voice and not subtitle and support_ko <= 2
@@ -629,6 +634,27 @@ def run(
 
     while True:
         stt_meta: dict | None = None
+
+        # --- Generate character opener when a new beat starts ---
+        if pending_opener and episode and ep_progress:
+            pending_opener = False
+            beat_now = beats_mod.current_beat(ep_progress, episode)
+            if beat_now and beats_mod.get_opener(beat_now) == "character":
+                caption = beats_mod.get_scene_caption(beat_now)
+                if caption:
+                    print(f"\n*{caption}*\n")
+                spk_id = beats_mod.get_beat_speaker(beat_now, episode)
+                spk_char = all_chars.get(spk_id, char) if spk_id else char
+                spk_name = spk_char.get("name", char_id)
+                opener_text = character.generate_opener(
+                    history,
+                    spk_id or char_id,
+                    beat_now,
+                    beat_variant=ep_progress.get("variant"),
+                    completed_beats=completed_beat_goals or None,
+                )
+                print(f"{spk_name}: {opener_text}\n")
+                history.append({"role": "assistant", "content": opener_text})
 
         if voice:
             try:
@@ -804,6 +830,21 @@ def run(
             print()
             continue
 
+        if user_input.startswith("/reset "):
+            target = user_input[7:].strip()
+            if not target:
+                print("[Usage: /reset <char_id>]\n")
+                continue
+            target_char_path = CHARS_DIR / f"{target}.yaml"
+            if not target_char_path.exists():
+                print(f"[Error] character '{target}' not found\n")
+                continue
+            from kotoba.db import reset_state as _reset_state
+            _reset_state(target)
+            target_char_name = yaml.safe_load(target_char_path.read_text()).get("name", target)
+            print(f"[Reset] {target_char_name} restored to default state\n")
+            continue
+
         # --- Resolve current beat and speaker before the turn ---
         beat: dict | None = None
         beat_variant: str | None = None
@@ -840,11 +881,25 @@ def run(
             fail_note=ep_fail_note,
             romanize=show_romanize,
             other_chars=other_chars or None,
+            completed_beats=completed_beat_goals or None,
         )
         ep_fail_note = None  # consumed this turn
         last_reply = char_reply
         last_judge = result
         last_events = events
+
+        # hapsyo_stiff: stiff once closeness is high and it happens 2+ turns in a row
+        if result.register_used == "hapsyo":
+            hapsyo_streak += 1
+        else:
+            hapsyo_streak = 0
+        if hapsyo_streak >= 2:
+            post_state = get_state(speaker_char_id)
+            if post_state["closeness"] >= 50:
+                update_state(speaker_char_id, respect=max(0, post_state["respect"] - 2))
+                slip_msg = "Using 하십시오체 when you're close sounds stiff. Try 해요체."
+                session_slips.append(slip_msg)
+                print(f"[Slip] {slip_msg}\n", flush=True)
 
         for _ev in events:
             if _ev.get("variable") == "milestone":
@@ -853,9 +908,16 @@ def run(
         # --- Beat runner: advance if pass_if met or turn cap reached ---
         if episode and ep_progress and beat:
             beat_turns += 1
-            if beats_mod.should_advance(beat_turns, result.beat_passed):
+            # completes_on: character — treat as passed on any player turn
+            effective_beat_passed = result.beat_passed
+            if beats_mod.get_completes_on(beat) == "character" and not beat.get("pass_if"):
+                effective_beat_passed = True
+            if beats_mod.should_advance(beat_turns, effective_beat_passed):
+                goal_summary = beat.get("goal", "").split("\n")[0][:60].strip()
+                if goal_summary and goal_summary not in completed_beat_goals:
+                    completed_beat_goals.append(goal_summary)
                 ep_progress, on_fail_note = beats_mod.advance(
-                    episode_id, episode, ep_progress, get_state(char_id), result.beat_passed
+                    episode_id, episode, ep_progress, get_state(char_id), effective_beat_passed
                 )
                 # Apply state deltas from on_fail (e.g. "respect -3")
                 if on_fail_note:
@@ -867,7 +929,11 @@ def run(
 
                 new_beat = beats_mod.current_beat(ep_progress, episode)
                 if new_beat:
-                    print(f"\n[→ beat: {new_beat['id']}] {new_beat['goal'].strip()}\n")
+                    pending_opener = beats_mod.get_opener(new_beat) == "character"
+                    if debug:
+                        print(f"\n[→ beat: {new_beat['id']}] {new_beat['goal'].strip()}\n")
+                    else:
+                        print(f"\n[→ beat: {new_beat['id']}]\n")
                 else:
                     print("\n[에피소드 완료! 계속 대화하거나 /quit으로 종료하세요.]\n")
 

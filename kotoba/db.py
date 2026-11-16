@@ -150,6 +150,27 @@ def get_state(char_id: str) -> dict:
     return state
 
 
+def reset_state(char_id: str) -> None:
+    """Reset character state to YAML defaults. Preserves memories."""
+    char = _load_char_yaml(char_id)
+    conn = _connect()
+    conn.execute(
+        "UPDATE character_state SET "
+        "closeness=20, respect=50, offense='none', "
+        "register_to_player=?, register_expected=?, "
+        "milestones_reached='[]', address_form='ssi', "
+        "updated_at=datetime('now') "
+        "WHERE character_id=?",
+        (
+            char.get("register_to_player_default", "haeyo"),
+            char.get("register_expected_default", "haeyo"),
+            char_id,
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
 def update_state(char_id: str, **kwargs) -> None:
     allowed = {
         "closeness", "respect", "offense",

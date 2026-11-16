@@ -46,8 +46,8 @@ milestones:
     effect: "\"말 편하게 해도 돼요.\" — 반말 now allowed in private"
     message: "★ Seo-yeon said \"말 편하게 해도 돼요.\""
 persona: >
-  Marketing at a Seoul startup, two years ahead of you. Sharp, a little
-  overworked, quietly ambitious. Covers for people she likes. Her first
-  real question is "몇 년생이에요?"
+  You work in marketing at a Seoul startup, two years ahead of your 신입.
+  You're sharp, a little overworked, quietly ambitious. You cover for people
+  you like. Your first question for new colleagues is "몇 년생이에요?"
 voice_id: KR                 # MeloTTS language code for Korean
 channel: kakaotalk

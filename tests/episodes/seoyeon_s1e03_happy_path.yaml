@@ -1,0 +1,40 @@
+episode: s1e03
+path_name: happy_path
+max_turns_per_beat: 1
+
+turns:
+  # arrive (seoyeon): no pass_if — advances on max_turns cap after 1 turn
+  - say: "네, 선배님. 감사해요. 많이 배울게요."
+    expect:
+      beat: arrive
+      register: haeyo
+
+  # pour (team_lead_oh): player offers to pour → beat_passed: true
+  - say: "팀장님, 제가 따라 드릴까요?"
+    expect:
+      beat: pour
+      register: haeyo
+      beat_passed: true
+
+  # question (team_lead_oh): player shares background → beat_passed: true
+  - say: "저는 미국에서 왔어요. 한국 문화가 좋아서 오게 됐어요."
+    expect:
+      beat: question
+      register: haeyo
+      beat_passed: true
+
+  # after (seoyeon): no pass_if — advances on max_turns cap after 1 turn
+  - say: "선배님 덕분에 많이 도움이 됐어요."
+    expect:
+      beat: after
+      register: haeyo
+
+  # hook (seoyeon): completes_on=character — beat_passed forced True, advances after 1 turn
+  - say: "정말요? 선배님이 꼭 되실 거예요!"
+    expect:
+      beat: hook
+      register: haeyo
+
+end_expect:
+  episode_complete: true
+  beats_reached: [arrive, pour, question, after, hook]

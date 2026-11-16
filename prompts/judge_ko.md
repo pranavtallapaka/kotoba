@@ -29,6 +29,7 @@ Lines are labeled PLAYER (the user you are judging) and the character name.
 {beat_context}
 
 If a `content_condition` is listed above, evaluate whether the player's turn satisfies it. Set `content_met` = true only if the condition is clearly met. Copy the **exact substring** from the player's turn that satisfies it into `content_evidence`; use "" if content_met is false or there is no content_condition.
+**Use the full exchange as context.** Look at the character's most recent line in the conversation history. If the player's reply directly answers the character's question and that answer satisfies the condition, mark `content_met` = true even if the reply is brief (e.g., "2000년이요" answers a birth-year question; "미국이요" answers a where-are-you-from question).
 **Deflections always fail:** if the player says 모르겠어요, 몰라요, 잘 모르겠어요, or any equivalent "I don't know / I'm not sure", set `content_met` = false regardless of the condition.
 
 ## What to check

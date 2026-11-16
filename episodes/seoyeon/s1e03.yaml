@@ -5,6 +5,9 @@ characters: [seoyeon, team_lead_oh]
 beats:
   - id: arrive
     speaker: seoyeon
+    opener: character
+    scene_caption: "Korean BBQ restaurant near the office. Seo-yeon finds you outside."
+    completes_on: player
     goal: >
       You've arrived at the 회식 venue — a Korean BBQ restaurant near the
       office. Seo-yeon pulls you aside before everyone sits down and quietly
@@ -18,6 +21,9 @@ beats:
 
   - id: pour
     speaker: team_lead_oh
+    opener: character
+    scene_caption: "Everyone is seated. 오 팀장님 raises his glass."
+    completes_on: player
     goal: >
       Everyone is seated. 오 팀장님 raises his glass and proposes a toast.
       He looks toward you — the newest member — expecting you to offer to
@@ -35,6 +41,8 @@ beats:
 
   - id: question
     speaker: team_lead_oh
+    opener: character
+    completes_on: player
     goal: >
       The mood lightens. 오 팀장님 turns to you and asks something personal —
       where you're from, what brought you to Korea, or what your plans are.
@@ -51,6 +59,9 @@ beats:
 
   - id: after
     speaker: seoyeon
+    opener: character
+    scene_caption: "Walking to the subway after dinner."
+    completes_on: player
     goal: >
       Walking to the subway after dinner, Seo-yeon talks about the evening.
       Warm and encouraging if things went well (proud variant); a little
@@ -65,6 +76,8 @@ beats:
 
   - id: hook
     speaker: seoyeon
+    opener: character
+    completes_on: character
     goal: >
       Seo-yeon mentions almost offhandedly that she's up for a promotion
       this quarter. She sounds calm but you can tell it matters to her.
