@@ -12,7 +12,7 @@ turns:
       register: haeyo
 
   # arrive turn 2 — cap reached, beat advances
-  - say: "알겠습니다, 선배님."
+  - say: "알겠어요, 선배님."
     expect:
       beat: arrive
       register: haeyo
