@@ -76,8 +76,8 @@ Suggested rules (adjust by context):
 
 ### 6. Offense level
 - **none**: correct register or hapsyo; no offense IDs triggered
-- **mild**: banmal before offer, or missing_honorifics_about_superiors
-- **serious**: very rude content (not triggered by register alone in v1)
+- **mild**: banmal_before_offer when register_expected is "haeyo" (peer context); missing_honorifics_about_superiors
+- **serious**: banmal_before_offer when register_expected is "hapsyo" (direct rudeness to a superior); explicitly rude or dismissive content
 
 ### 7. Player social moves (Korean only)
 These are intentional social gestures, not register errors. Detect them by meaning.
