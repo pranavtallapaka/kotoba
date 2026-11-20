@@ -1,0 +1,50 @@
+episode: ren_s1e01
+path_name: stuck_beginner
+# max_turns_per_beat: 2 means each beat needs 2 turns before auto-advancing.
+# greet has no pass_if, so it advances after 2 turns via the max_turns cap.
+# intro has a pass_if but the player never satisfies it, so it advances via cap.
+max_turns_per_beat: 2
+
+turns:
+  # greet turn 1
+  - say: "はじめまして。よろしくお願いします。"
+    expect:
+      beat: greet
+      register: desu_masu
+
+  # greet turn 2 — after this, beat_turns=2 >= max_turns=2, greet advances
+  - say: "お隣に引っ越してきました。"
+    expect:
+      beat: greet
+      register: desu_masu
+
+  # intro turn 1: no name → beat_passed: false
+  - say: "よくわかりません。"
+    expect:
+      beat: intro
+      register: desu_masu
+      beat_passed: false
+
+  # intro turn 2: still no name → max_turns reached, beat advances via fallback
+  - say: "えーと、すみません。"
+    expect:
+      beat: intro
+      register: desu_masu
+      beat_passed: false
+
+  # small_talk: mentions origin → beat_passed: true
+  - say: "アメリカから来ました。"
+    expect:
+      beat: small_talk
+      register: desu_masu
+      beat_passed: true
+
+  # hook: completes_on=character — beat_passed is forced True, advances after 1 turn
+  - say: "ありがとうございます！"
+    expect:
+      beat: hook
+      register: desu_masu
+
+end_expect:
+  episode_complete: true
+  beats_reached: [greet, intro, small_talk, hook]

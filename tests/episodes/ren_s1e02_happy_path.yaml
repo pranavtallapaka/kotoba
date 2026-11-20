@@ -1,0 +1,30 @@
+episode: ren_s1e02
+path_name: happy_path
+max_turns_per_beat: 1
+
+turns:
+  - say: "あ、すみません！間違えてしまいました。"
+    expect:
+      beat: mistake
+      register: desu_masu
+
+  - say: "ありがとうございます、中島さん。助かりました！"
+    expect:
+      beat: fix
+      register: desu_masu
+      beat_passed: true
+
+  - say: "バンドをやっているんですか？すごいですね！"
+    expect:
+      beat: chat
+      register: desu_masu
+      beat_passed: true
+
+  - say: "わかりました。全然気になりませんよ。楽しみにしています！"
+    expect:
+      beat: hook
+      register: desu_masu
+
+end_expect:
+  episode_complete: true
+  beats_reached: [mistake, fix, chat, hook]

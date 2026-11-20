@@ -1,0 +1,50 @@
+episode: ren_s1e02
+path_name: stuck_beginner
+# max_turns_per_beat: 2 means each beat needs 2 turns before auto-advancing.
+# mistake has no pass_if, so it advances after 2 turns via the max_turns cap.
+# fix has a pass_if but the player never satisfies it, so it advances via cap.
+max_turns_per_beat: 2
+
+turns:
+  # mistake turn 1
+  - say: "すみません、わかりませんでした。"
+    expect:
+      beat: mistake
+      register: desu_masu
+
+  # mistake turn 2 — after this, beat_turns=2 >= max_turns=2, mistake advances
+  - say: "ごめんなさい。"
+    expect:
+      beat: mistake
+      register: desu_masu
+
+  # fix turn 1: no thanks → beat_passed: false
+  - say: "そうですか。"
+    expect:
+      beat: fix
+      register: desu_masu
+      beat_passed: false
+
+  # fix turn 2: still no thanks → max_turns reached, beat advances via fallback
+  - say: "なるほど。"
+    expect:
+      beat: fix
+      register: desu_masu
+      beat_passed: false
+
+  # chat: asks about practice → beat_passed: true
+  - say: "練習って何ですか？"
+    expect:
+      beat: chat
+      register: desu_masu
+      beat_passed: true
+
+  # hook: completes_on=character — beat_passed is forced True, advances after 1 turn
+  - say: "ありがとうございます、中島さん。"
+    expect:
+      beat: hook
+      register: desu_masu
+
+end_expect:
+  episode_complete: true
+  beats_reached: [mistake, fix, chat, hook]

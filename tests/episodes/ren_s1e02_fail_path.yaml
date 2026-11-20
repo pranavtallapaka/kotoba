@@ -1,0 +1,36 @@
+episode: ren_s1e02
+path_name: fail_path
+max_turns_per_beat: 1
+
+turns:
+  # plain form before tameguchi offer — offense: mild, respect drops
+  - say: "あ、やばい。間違えた。"
+    expect:
+      beat: mistake
+      register: plain
+      offense: mild
+      respect_change: negative
+
+  # fix: no thanks — deflects → beat_passed: false → on_fail fires (closeness -1)
+  - say: "そうですか。"
+    expect:
+      beat: fix
+      register: desu_masu
+      beat_passed: false
+
+  # chat: ignores the band/practice mention → beat_passed: false → on_fail fires (closeness -1)
+  - say: "そうなんですね。"
+    expect:
+      beat: chat
+      register: desu_masu
+      beat_passed: false
+
+  # hook: recovers with clean desu_masu
+  - say: "わかりました。ありがとうございます。"
+    expect:
+      beat: hook
+      register: desu_masu
+
+end_expect:
+  episode_complete: true
+  beats_reached: [mistake, fix, chat, hook]

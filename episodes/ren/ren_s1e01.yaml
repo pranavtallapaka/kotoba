@@ -1,0 +1,68 @@
+id: ren_s1e01
+title: 引っ越しの挨拶 (Moving-In Greeting)
+characters: [ren]
+
+beats:
+  - id: greet
+    opener: character
+    scene_caption: "Sunday afternoon. You ring the doorbell of the apartment next door."
+    completes_on: player
+    goal: >
+      You've just moved in. Ren opens the door, looks a little surprised, then
+      politely introduces himself — 中島蓮です, nice to meet you, in natural
+      desu_masu. He waits to hear who you are. Keep it short and warm but
+      slightly shy.
+    beginner_frames:
+      - japanese: はじめまして。引っ越してきました。よろしくお願いします。
+        gloss: Nice to meet you. I just moved in. Please take care of me.
+      - japanese: こんにちは、お隣に引っ越してきました。よろしくお願いします。
+        gloss: Hello, I just moved into the apartment next door. Nice to meet you.
+
+  - id: intro
+    opener: character
+    completes_on: player
+    goal: >
+      Ren asks your name in friendly desu_masu — 「お名前、聞いてもいいですか?」
+      He looks genuinely curious. When you answer, he nods and repeats it back
+      with さん, confirming he'll remember it. Keep his reaction natural and warm.
+    pass_if:
+      content: player gives their name
+      require_register_ok: true
+    on_fail: he smiles politely without pressing further; closeness -1
+    beginner_frames:
+      - japanese: 私は〔名前〕です。よろしくお願いします、中島さん。
+        gloss: I'm [name]. Nice to meet you, Nakajima-san.
+      - japanese: 〔名前〕といいます。こちらこそよろしくお願いします。
+        gloss: My name is [name]. Likewise, nice to meet you.
+
+  - id: small_talk
+    opener: character
+    completes_on: player
+    goal: >
+      Ren makes small talk and asks where you're from — 「どちらのご出身ですか?」
+      He's making conversation, not interrogating. When you answer, he says
+      something brief about it — 「そうなんですね」or a small comment. Keep it light.
+    pass_if:
+      content: player mentions their hometown, country, or region
+      require_register_ok: false
+    on_fail: he nods and lets the topic drop; closeness -1
+    beginner_frames:
+      - japanese: アメリカから来ました。
+        gloss: I came from the United States.
+      - japanese: 東京の出身じゃなくて、大阪から来ました。
+        gloss: I'm not from Tokyo — I came from Osaka.
+
+  - id: hook
+    opener: character
+    scene_caption: "Ren glances toward the hallway."
+    completes_on: character
+    goal: >
+      Ren wraps up the conversation and mentions the garbage rules — Monday
+      morning for burnable trash, the bin is at the end of the hallway.
+      He adds that the building association has a notice board if you ever
+      have questions. Friendly, helpful, and slightly formal — neighbor mode.
+    beginner_frames:
+      - japanese: ありがとうございます！覚えておきます。
+        gloss: Thank you! I'll remember that.
+      - japanese: 教えていただいてありがとうございます。
+        gloss: Thank you for letting me know.

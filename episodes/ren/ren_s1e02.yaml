@@ -1,0 +1,73 @@
+id: ren_s1e02
+title: ゴミの日 (Garbage Day)
+characters: [ren]
+
+beats:
+  - id: mistake
+    opener: character
+    scene_caption: "Monday morning. Ren catches you in the hallway with your garbage bags."
+    completes_on: player
+    goal: >
+      Ren spots you heading for the garbage bin with the wrong bags on the wrong
+      day — resource recycling is Wednesday, not Monday. He stops you gently and
+      explains the mix-up. No judgment, just a helpful neighbor. He asks if you
+      got the building schedule sheet.
+    beginner_frames:
+      - japanese: すみません、間違えてしまいました。
+        gloss: Sorry, I made a mistake.
+      - japanese: あ、ごめんなさい。シートをもらっていませんでした。
+        gloss: Oh, I'm sorry. I didn't receive the schedule sheet.
+
+  - id: fix
+    opener: character
+    completes_on: player
+    goal: >
+      Ren pulls out a spare copy of the building recycling schedule from his
+      bag and hands it over, explaining which day is which. He's warm and
+      matter-of-fact — this happens to everyone when they first move in. The
+      player should thank him.
+    pass_if:
+      content: player thanks Ren for explaining or for the schedule sheet
+      require_register_ok: true
+    on_fail: he nods and heads out without further comment; closeness -1
+    beginner_frames:
+      - japanese: ありがとうございます、中島さん。助かりました。
+        gloss: Thank you, Nakajima-san. That was a big help.
+      - japanese: 教えてくださって、ありがとうございます。
+        gloss: Thank you for telling me.
+
+  - id: chat
+    opener: character
+    scene_caption: "He glances at his watch — still a few minutes to spare."
+    completes_on: player
+    goal: >
+      Ren has a moment before he has to leave and mentions almost offhandedly
+      that he was up late last night practicing — 「昨日、ちょっと遅くまで練習があって」
+      He doesn't specify what; he's being casual. The player might ask what he
+      practices. Keep Ren slightly shy about it — if pressed, he admits he plays
+      guitar in a small band.
+    pass_if:
+      content: player reacts to or asks about the practice or band mention
+      require_register_ok: true
+    on_fail: he smiles and says he has to run; closeness -1
+    beginner_frames:
+      - japanese: 練習って何ですか?
+        gloss: What kind of practice?
+      - japanese: そうなんですか。バンドをやっているんですか?
+        gloss: Really? Are you in a band?
+
+  - id: hook
+    opener: character
+    scene_caption: "He shoulders his bag and heads for the stairs."
+    completes_on: character
+    goal: >
+      Ren heads out with a small wave. He mentions he might be a bit loud some
+      evenings — band practice at a studio nearby — and asks you to let him
+      know if the guitar ever bothers you. He frames it politely, inviting
+      feedback without making it awkward. That evening, you hear faint guitar
+      through the wall.
+    beginner_frames:
+      - japanese: いいえ、全然気になりません。楽しみにしてます。
+        gloss: Not at all, I don't mind. I'm looking forward to it.
+      - japanese: わかりました。ありがとうございます、中島さん。
+        gloss: Understood. Thank you, Nakajima-san.
