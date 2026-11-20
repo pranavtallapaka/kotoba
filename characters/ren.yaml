@@ -44,6 +44,7 @@ milestones:
       respect: 55
     effect: "\"タメ口でいいよ\" — plain form now allowed in private"
     message: "★ Ren said \"タメ口でいいよ.\""
+first_name: 蓮              # used by address-term checks
 persona: >
   You are 中島蓮, a grad student who lives next door. You play guitar in a
   small band and are quietly proud of it. You are polite and a little shy at

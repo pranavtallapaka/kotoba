@@ -19,11 +19,13 @@ from pydantic import BaseModel, model_validator
 from kotoba import llm
 from kotoba import honorific_ko
 from kotoba import validator_ko
+from kotoba import validator_ja
 from kotoba.config import JUDGE_MODEL
 
 HERE = Path(__file__).parent
 ROOT = HERE.parent
-TEMPLATE = ROOT / "prompts" / "judge_ko.md"
+TEMPLATE_KO = ROOT / "prompts" / "judge_ko.md"
+TEMPLATE_JA = ROOT / "prompts" / "judge_ja.md"
 
 # Per-turn bounds (inclusive). Code enforces these; prompt just hints at them.
 _CLOSENESS_MIN, _CLOSENESS_MAX = -3, 3
@@ -48,7 +50,7 @@ class MemoryItem(BaseModel):
 
 
 class JudgeResult(BaseModel):
-    register_used: Literal["hapsyo", "haeyo", "banmal"]
+    register_used: Literal["hapsyo", "haeyo", "banmal", "desu_masu", "plain"]
     register_expected: str
     register_match: bool
     offense_ids: list[str]
@@ -60,6 +62,7 @@ class JudgeResult(BaseModel):
     state_deltas: dict[str, int]
     offense: Literal["none", "mild", "serious"]
     repair_required: bool
+    indirectness_score: int | None = None  # 0–2; Japanese indirectness beats only
     reason: str
 
     # Computed post-LLM; not sent to the model.
@@ -67,7 +70,7 @@ class JudgeResult(BaseModel):
     honorific_subject_is_senior: bool = False
     honorific_verb_ok: bool = True
     beat_passed: bool | None = None
-    validator_register: Literal["hapsyo", "haeyo", "banmal", "unknown"] | None = None
+    validator_register: Literal["hapsyo", "haeyo", "banmal", "desu_masu", "plain", "unknown"] | None = None
     validator_confidence: Literal["high", "medium", "low"] | None = None
     validator_override: bool = False
     # Set by judge_repair() on repair turns.
@@ -107,7 +110,12 @@ def _register_label(r: str) -> str:
     return {"hapsyo": "하십시오체 (hapsyo)", "haeyo": "해요체 (haeyo)", "banmal": "반말 (banmal)"}.get(r, r)
 
 
+def _register_label_ja(r: str) -> str:
+    return {"desu_masu": "です/ます (desu_masu)", "plain": "plain form (casual)"}.get(r, r)
+
+
 def _format_character_facts(character: dict) -> str:
+    lang = character.get("language", "ko")
     name = character.get("name", "?")
     char_id = character.get("id", "?")
     role = character.get("role", "unknown")
@@ -115,19 +123,51 @@ def _format_character_facts(character: dict) -> str:
     offenses = character.get("offenses", [])
     offense_lines = "\n".join(f"  - {o}" for o in offenses) if offenses else "  (none)"
     beginner_tol = character.get("beginner_tolerance", False)
+    tol_str = "yes — forgive grammar/particle slips; always judge register strictly" if beginner_tol else "no"
 
+    if lang == "ja":
+        address_terms = character.get("address_terms", [])
+        address_str = "/".join(address_terms) if address_terms else "さん form"
+        return (
+            f"Character: {name} ({char_id})\n"
+            f"Role: {role}, age {age_offset} relative to the player\n"
+            f"Group: {character.get('group', 'in')}-group\n"
+            f"Language: Japanese\n"
+            f"Offense IDs to check (only flag these):\n{offense_lines}\n"
+            f"Beginner tolerance: {tol_str}\n"
+            f"Expected address from player: {address_str} (first name 蓮 only after drops_san milestone)"
+        )
+
+    # Korean
     return (
         f"Character: {name} ({char_id})\n"
         f"Role: {role}, age {age_offset} relative to the player\n"
         f"Group: {character.get('group', 'in')}-group\n"
         f"Language: Korean\n"
         f"Offense IDs to check (only flag these):\n{offense_lines}\n"
-        f"Beginner tolerance: {'yes — forgive grammar/particle slips; always judge register strictly' if beginner_tol else 'no'}\n"
+        f"Beginner tolerance: {tol_str}\n"
         f"Superiors in scene: 오 팀장 (team lead, ranks above both player and {name})"
     )
 
 
-def _format_state_facts(state: dict) -> str:
+def _format_state_facts(state: dict, lang: str = "ko") -> str:
+    milestones = state.get("milestones_reached", [])
+    milestones_str = ", ".join(milestones) if milestones else "none"
+
+    if lang == "ja":
+        offer_made = state.get("register_expected") == "plain"
+        drops_san = "drops_san" in milestones
+        return (
+            f"closeness: {state['closeness']}/100\n"
+            f"respect: {state['respect']}/100\n"
+            f"current offense level: {state['offense']}\n"
+            f"register character uses with player: {_register_label_ja(state['register_to_player'])}\n"
+            f"register_expected: {state['register_expected']}\n"
+            f"milestones_reached: {milestones_str}\n"
+            f"drops_san reached: {'yes — first name (蓮) is now acceptable' if drops_san else 'no — player must use 中島さん or similar さん form'}\n"
+            f"タメ口 offer made: {'yes — plain_before_offer does NOT apply' if offer_made else 'no — flag plain form as plain_before_offer'}"
+        )
+
     offer_made = state.get("register_expected") == "banmal"
     return (
         f"closeness: {state['closeness']}/100\n"
@@ -135,6 +175,7 @@ def _format_state_facts(state: dict) -> str:
         f"current offense level: {state['offense']}\n"
         f"register character uses with player: {_register_label(state['register_to_player'])}\n"
         f"register_expected: {state['register_expected']}\n"
+        f"milestones_reached: {milestones_str}\n"
         f"반말 offer made: {'yes — banmal_before_offer does NOT apply' if offer_made else 'no — flag banmal as banmal_before_offer'}"
     )
 
@@ -161,6 +202,8 @@ def _format_beat(beat: dict | None) -> str:
         content = pass_if.get("content") if isinstance(pass_if, dict) else str(pass_if)
         if content:
             text += f"\ncontent_condition: {content}"
+    if beat.get("judge_indirectness"):
+        text += "\njudge_indirectness: true"
     return text
 
 
@@ -177,16 +220,18 @@ def judge(
     other_chars: list[dict] | None = None,
 ) -> JudgeResult:
     """Score one player turn and return a JudgeResult."""
+    lang = character.get("language", "ko")
     char_name = character.get("name", "CHARACTER")
+    template_path = TEMPLATE_JA if lang == "ja" else TEMPLATE_KO
+
     fills = {
         "character_facts": _format_character_facts(character),
-        "state_facts": _format_state_facts(state),
+        "state_facts": _format_state_facts(state, lang=lang),
         "history": _format_history(history, char_name),
         "beat_context": _format_beat(beat),
         "char_about": character.get("id", "character"),
     }
-    template = TEMPLATE.read_text()
-    system_prompt = template
+    system_prompt = template_path.read_text()
     for key, val in fills.items():
         system_prompt = system_prompt.replace("{" + key + "}", val)
     messages = [
@@ -201,13 +246,16 @@ def judge(
     )
 
     # Drop user memories whose source_quote doesn't appear verbatim in the player turn.
-    # This prevents the model from attributing the character's own words to the player.
     result.new_memories = [
         m for m in result.new_memories
         if m.about != "user" or m.source_quote in text
     ]
 
-    val_reg, val_conf, _ = validator_ko.classify(text)
+    # --- Validator override (language-specific) ---
+    if lang == "ja":
+        val_reg, val_conf, _ = validator_ja.classify(text)
+    else:
+        val_reg, val_conf, _ = validator_ko.classify(text)
     result.validator_register = val_reg
     result.validator_confidence = val_conf
     if val_conf == "high" and val_reg != "unknown" and val_reg != result.register_used:
@@ -215,71 +263,82 @@ def judge(
         result.register_match = (val_reg == result.register_expected)
         result.validator_override = True
 
-    # The judge prompt instructs honorific_errors in "X → Y" format.
-    # Entries without → are bare address terms the LLM mistakenly flagged
-    # (e.g. ['선배님'] when the player used the term correctly).
-    result.honorific_errors = [e for e in result.honorific_errors if "→" in e]
+    if lang == "ja":
+        # plain_before_offer guard: strip if the player didn't actually use plain form.
+        if "plain_before_offer" in result.offense_ids and result.register_used != "plain":
+            result.offense_ids = [
+                oid for oid in result.offense_ids if oid != "plain_before_offer"
+            ]
+            if not result.offense_ids:
+                result.offense = "none"
+                result.repair_required = False
+                if result.state_deltas.get("respect", 0) < 0:
+                    result.state_deltas["respect"] = 0
+    else:
+        # Korean: clean up honorific_errors, enforce name-ssi, banmal guards, honorific check.
 
-    # name_ssi_to_senior: inject offense if player used senior's name + 씨 without a title.
-    if "name_ssi_to_senior" in character.get("offenses", []):
-        full_name = character.get("name", "")
-        given = full_name[-2:] if len(full_name) >= 2 else ""
-        if given and re.search(rf"{given}\s*씨", text) and "name_ssi_to_senior" not in result.offense_ids:
-            result.offense_ids.append("name_ssi_to_senior")
+        result.honorific_errors = [e for e in result.honorific_errors if "→" in e]
+
+        if "name_ssi_to_senior" in character.get("offenses", []):
+            full_name = character.get("name", "")
+            given = full_name[-2:] if len(full_name) >= 2 else ""
+            if given and re.search(rf"{given}\s*씨", text) and "name_ssi_to_senior" not in result.offense_ids:
+                result.offense_ids.append("name_ssi_to_senior")
+                if result.offense == "none":
+                    result.offense = "mild"
+                if result.state_deltas.get("respect", 0) >= 0:
+                    result.state_deltas["respect"] = -2
+
+        if "banmal_before_offer" in result.offense_ids and result.register_used != "banmal":
+            result.offense_ids = [
+                oid for oid in result.offense_ids if oid != "banmal_before_offer"
+            ]
+            if not result.offense_ids and not result.honorific_errors:
+                result.offense = "none"
+                result.repair_required = False
+                if result.state_deltas.get("respect", 0) < 0:
+                    result.state_deltas["respect"] = 0
+
+        # banmal → hapsyo-expected senior is always serious, not mild.
+        if (
+            "banmal_before_offer" in result.offense_ids
+            and result.register_used == "banmal"
+            and result.register_expected == "hapsyo"
+            and result.offense != "serious"
+        ):
+            result.offense = "serious"
+            result.repair_required = True
+
+        extra_seniors: set[str] = set()
+        for c in [character] + (other_chars or []):
+            if any(k in c.get("role", "") for k in ("lead", "senior", "teacher", "boss", "president")):
+                name = c.get("name", "")
+                if name:
+                    extra_seniors.add(name)
+                    if len(name) >= 2:
+                        extra_seniors.add(name[-2:])
+
+        hon = honorific_ko.check(text, frozenset(extra_seniors) if extra_seniors else None)
+        result.honorific_subject = hon.subject
+        result.honorific_subject_is_senior = hon.subject_is_senior
+        result.honorific_verb_ok = hon.verb_has_honorific
+
+        if (
+            hon.confidence == "high"
+            and hon.subject_is_senior
+            and not hon.verb_has_honorific
+            and "missing_honorifics_about_superiors" in character.get("offenses", [])
+            and "missing_honorifics_about_superiors" not in result.offense_ids
+        ):
+            result.offense_ids.append("missing_honorifics_about_superiors")
             if result.offense == "none":
                 result.offense = "mild"
-            if result.state_deltas.get("respect", 0) >= 0:
-                result.state_deltas["respect"] = -2
+            if result.state_deltas.get("respect", 0) > -4:
+                result.state_deltas["respect"] = -4
+            if not result.honorific_errors:
+                result.honorific_errors.append(f"{hon.subject} → -(으)시- 필요")
 
-    # banmal_before_offer requires the player to have actually used banmal.
-    # The LLM sometimes fires it on haeyo turns when it sees a medial -어/아 morpheme
-    # (e.g. "-어도", "-아서") even though the sentence ends in 요.
-    # Strip the false offense and undo the negative respect delta.
-    if "banmal_before_offer" in result.offense_ids and result.register_used != "banmal":
-        result.offense_ids = [
-            oid for oid in result.offense_ids if oid != "banmal_before_offer"
-        ]
-        if not result.offense_ids and not result.honorific_errors:
-            result.offense = "none"
-            result.repair_required = False
-            if result.state_deltas.get("respect", 0) < 0:
-                result.state_deltas["respect"] = 0
-
-    # --- Honorific rule check (overrides judge when high-confidence) ---
-    extra_seniors: set[str] = set()
-    for c in [character] + (other_chars or []):
-        if any(k in c.get("role", "") for k in ("lead", "senior", "teacher", "boss", "president")):
-            name = c.get("name", "")
-            if name:
-                extra_seniors.add(name)
-                if len(name) >= 2:
-                    extra_seniors.add(name[-2:])
-
-    hon = honorific_ko.check(text, frozenset(extra_seniors) if extra_seniors else None)
-    result.honorific_subject = hon.subject
-    result.honorific_subject_is_senior = hon.subject_is_senior
-    result.honorific_verb_ok = hon.verb_has_honorific
-
-    if (
-        hon.confidence == "high"
-        and hon.subject_is_senior
-        and not hon.verb_has_honorific
-        and "missing_honorifics_about_superiors" in character.get("offenses", [])
-        and "missing_honorifics_about_superiors" not in result.offense_ids
-    ):
-        result.offense_ids.append("missing_honorifics_about_superiors")
-        if result.offense == "none":
-            result.offense = "mild"
-        if result.state_deltas.get("respect", 0) > -4:
-            result.state_deltas["respect"] = -4
-        if not result.honorific_errors:
-            result.honorific_errors.append(f"{hon.subject} → -(으)시- 필요")
-
-    # Compute beat_passed from content_met + optional register check.
-    # content_evidence must appear verbatim in the player turn; if the LLM
-    # claimed content_met but can't quote evidence, treat it as false.
     result.beat_passed = _compute_beat_passed(result, beat, text)
-
     return result
 
 
@@ -384,6 +443,6 @@ def _compute_beat_passed(result: "JudgeResult", beat: dict | None, text: str) ->
     if not isinstance(pass_if, dict) or not pass_if.get("require_register_ok"):
         return content_met
 
-    # require_register_ok: player must not be using banmal (haeyo or hapsyo both fine).
-    register_ok = result.register_used in ("haeyo", "hapsyo")
+    # require_register_ok: player must not be using casual register (banmal or plain).
+    register_ok = result.register_used not in ("banmal", "plain")
     return bool(content_met and register_ok)
