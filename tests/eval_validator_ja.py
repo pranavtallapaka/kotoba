@@ -5,9 +5,16 @@ Usage: python tests/eval_validator_ja.py
 Prints a short summary (overall accuracy, per-category, miss count).
 Full details written to tests/eval_validator_ja_results.csv.
 """
-import csv
+import os
 import sys
 from pathlib import Path
+
+# Re-exec with the project venv if not already running inside it.
+_venv_python = Path(__file__).parent.parent / ".venv" / "bin" / "python"
+if _venv_python.exists() and os.path.realpath(sys.executable) != os.path.realpath(str(_venv_python)):
+    os.execv(str(_venv_python), [str(_venv_python)] + sys.argv)
+
+import csv
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
