@@ -74,10 +74,20 @@ Suggested rules (adjust by context):
 - honorific error about superior → closeness 0, respect -4
 - grammar error only (no register issue) → closeness 0, respect -1 (or 0 if very minor)
 
-### 6. Offense level
-- **none**: correct register or hapsyo; no offense IDs triggered
-- **mild**: banmal_before_offer when register_expected is "haeyo" (peer context); missing_honorifics_about_superiors
-- **serious**: banmal_before_offer when register_expected is "hapsyo" (direct rudeness to a superior); explicitly rude or dismissive content
+### 6. Offense level — follow these steps in order
+
+**Step 1:** If no offense IDs triggered → `offense: "none"`, `repair_required: false`. Done.
+
+**Step 2:** If `missing_honorifics_about_superiors` is the only offense → `offense: "mild"`, `repair_required: false`.
+
+**Step 3:** If `banmal_before_offer` is triggered (register_used = "banmal"):
+- Look up `register_expected` in the state facts above.
+- `register_expected` = **"haeyo"** → `offense: "mild"`, `repair_required: false` (casual speech toward a peer-level character)
+- `register_expected` = **"hapsyo"** → `offense: "serious"`, `repair_required: true` (banmal aimed at a formal-register senior is a severe breach)
+
+**Concrete example (always serious):**
+> Player says "야, 술이나 한 잔 줘봐." while `register_expected` = "hapsyo"
+> → register_used: "banmal", offense_ids: ["banmal_before_offer"], offense: **"serious"**, repair_required: **true**
 
 ### 7. Player social moves (Korean only)
 These are intentional social gestures, not register errors. Detect them by meaning.
